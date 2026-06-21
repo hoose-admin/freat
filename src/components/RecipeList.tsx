@@ -1,12 +1,27 @@
+import { useRef, useState } from "react";
 import type { Recipe } from "../lib/types";
+import CookMode from "./CookMode";
 
 interface Props {
   recipes: Recipe[];
 }
 
 export default function RecipeList({ recipes }: Props) {
+  const [cookIndex, setCookIndex] = useState<number | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
   if (recipes.length === 0) {
     return <p className="muted">No recipes yet. Try adding a few more ingredients.</p>;
+  }
+
+  function openCook(idx: number, el: HTMLButtonElement) {
+    triggerRef.current = el;
+    setCookIndex(idx);
+  }
+
+  function closeCook() {
+    setCookIndex(null);
+    triggerRef.current?.focus();
   }
 
   return (
@@ -41,9 +56,25 @@ export default function RecipeList({ recipes }: Props) {
                 ))}
               </ol>
             </details>
+
+            {r.steps.length > 0 && (
+              <div className="recipe-card__actions">
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={(e) => openCook(idx, e.currentTarget)}
+                >
+                  <span aria-hidden="true">👨‍🍳</span> Cook this
+                </button>
+              </div>
+            )}
           </article>
         ))}
       </div>
+
+      {cookIndex !== null && recipes[cookIndex] && (
+        <CookMode recipe={recipes[cookIndex]} onClose={closeCook} />
+      )}
     </section>
   );
 }
