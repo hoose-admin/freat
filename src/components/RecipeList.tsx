@@ -2,11 +2,25 @@ import type { Recipe } from "../lib/types";
 
 interface Props {
   recipes: Recipe[];
+  /** Jump back to the ingredient editor — wired to the empty-state next step. */
+  onEditIngredients?: () => void;
 }
 
-export default function RecipeList({ recipes }: Props) {
+export default function RecipeList({ recipes, onEditIngredients }: Props) {
   if (recipes.length === 0) {
-    return <p className="muted">No recipes yet. Try adding a few more ingredients.</p>;
+    return (
+      <section className="recipes recipes--empty">
+        <h2 className="section-title">Meal ideas</h2>
+        <p className="muted">
+          No recipes matched those ingredients yet. Add a couple more and try again.
+        </p>
+        {onEditIngredients && (
+          <button className="btn btn--ghost" onClick={onEditIngredients}>
+            Edit ingredients
+          </button>
+        )}
+      </section>
+    );
   }
 
   return (
