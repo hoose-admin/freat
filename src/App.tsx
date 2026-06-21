@@ -54,6 +54,9 @@ export default function App() {
 
   return (
     <div className="app">
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header className="app__header">
         <h1 className="app__title">
           <span aria-hidden="true">🧊</span> Freat
@@ -61,7 +64,7 @@ export default function App() {
         <p className="app__tagline">Snap your fridge, get dinner ideas.</p>
       </header>
 
-      <main className="app__main" aria-busy={busy}>
+      <main id="main-content" className="app__main" tabIndex={-1} aria-busy={busy}>
         {error && (
           <div className="banner banner--error" role="alert">
             {error}
