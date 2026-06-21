@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 
 interface Props {
   onPhoto: (dataUrl: string) => void;
+  onError: (message: string) => void;
   busy: boolean;
 }
 
@@ -10,7 +11,7 @@ interface Props {
  * the rear camera and desktops open a file picker. (A live getUserMedia preview
  * is a tracked enhancement — see the backlog.)
  */
-export default function PhotoCapture({ onPhoto, busy }: Props) {
+export default function PhotoCapture({ onPhoto, onError, busy }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [reading, setReading] = useState(false);
 
@@ -27,7 +28,13 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
       setReading(false);
       if (typeof reader.result === "string") onPhoto(reader.result);
     };
-    reader.onerror = () => setReading(false);
+    // A failed/corrupt read must not be silent — route it through App's existing
+    // assertive role="alert" banner (TKT-124) so sighted AND screen-reader users
+    // get feedback. Mirrors how onPhoto reports the success path upward.
+    reader.onerror = () => {
+      setReading(false);
+      onError("Couldn't read that image. Please try another photo.");
+    };
     reader.readAsDataURL(file);
   }
 
