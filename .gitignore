@@ -1,0 +1,11 @@
+# weave installer source — kept locally for upgrades, hidden from graph scans
+.weave-src/
+
+# dependencies
+node_modules/
+
+# weave dashboard cache (rebuilt on demand)
+.weave/cache/
+
+# os
+.DS_Store

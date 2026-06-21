@@ -1,0 +1,5 @@
+{
+  "repoRoot": ".",
+  "ticketsRoot": ".tickets",
+  "port": 5174
+}
