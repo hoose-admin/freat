@@ -178,7 +178,8 @@ body {
 
 /* Ingredients */
 .ingredients,
-.recipes {
+.recipes,
+.shopping {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -204,6 +205,10 @@ body {
 }
 .chip__label {
   text-transform: capitalize;
+}
+/* A chip with no remove button (e.g. the shopping list) — symmetric padding. */
+.chip--plain {
+  padding: 6px 14px;
 }
 .chip__remove {
   border: none;
@@ -248,6 +253,24 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
+}
+.recipe-card--selected {
+  border-color: var(--brand);
+}
+.recipe-card__select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.recipe-card__select input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+  cursor: pointer;
 }
 .recipe-card__head {
   display: flex;
@@ -300,6 +323,14 @@ body {
 }
 .tag--hard {
   color: #fca5a5;
+}
+
+/* Shopping list */
+.shopping__status {
+  margin: 10px 0 0;
+  min-height: 1.2em; /* reserve space so feedback doesn't shift layout */
+  font-size: 0.9rem;
+  color: var(--muted);
 }
 
 .visually-hidden {

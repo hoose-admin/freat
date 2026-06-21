@@ -2,9 +2,13 @@ import type { Recipe } from "../lib/types";
 
 interface Props {
   recipes: Recipe[];
+  /** Indices of the recipes currently added to the shopping list. */
+  selected: Set<number>;
+  /** Toggle a recipe in/out of the shopping list. */
+  onToggleSelect: (index: number) => void;
 }
 
-export default function RecipeList({ recipes }: Props) {
+export default function RecipeList({ recipes, selected, onToggleSelect }: Props) {
   if (recipes.length === 0) {
     return <p className="muted">No recipes yet. Try adding a few more ingredients.</p>;
   }
@@ -13,8 +17,22 @@ export default function RecipeList({ recipes }: Props) {
     <section className="recipes">
       <h2 className="section-title">Meal ideas</h2>
       <div className="recipe-grid">
-        {recipes.map((r, idx) => (
-          <article className="recipe-card" key={`${r.title}-${idx}`}>
+        {recipes.map((r, idx) => {
+          const isSelected = selected.has(idx);
+          return (
+          <article
+            className={`recipe-card${isSelected ? " recipe-card--selected" : ""}`}
+            key={`${r.title}-${idx}`}
+          >
+            <label className="recipe-card__select">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => onToggleSelect(idx)}
+              />
+              <span>Add to shopping list</span>
+            </label>
+
             <header className="recipe-card__head">
               <h3 className="recipe-card__title">{r.title}</h3>
               <div className="recipe-card__meta">
@@ -42,7 +60,8 @@ export default function RecipeList({ recipes }: Props) {
               </ol>
             </details>
           </article>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

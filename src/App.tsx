@@ -2,6 +2,7 @@ import { useState } from "react";
 import PhotoCapture from "./components/PhotoCapture";
 import IngredientList from "./components/IngredientList";
 import RecipeList from "./components/RecipeList";
+import ShoppingList from "./components/ShoppingList";
 import { analyzeFridge, getRecipes, ApiRequestError } from "./lib/api";
 import type { Ingredient, Recipe } from "./lib/types";
 
@@ -12,6 +13,8 @@ export default function App() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  // Indices of recipes the user wants on their shopping list (all, by default).
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +39,8 @@ export default function App() {
     try {
       const list = await getRecipes(ingredients.map((i) => i.name));
       setRecipes(list);
+      // Start with every recipe on the shopping list; the toggles narrow it.
+      setSelected(new Set(list.map((_, i) => i)));
       setPhase("recipes");
     } catch (e) {
       setError(messageFor(e));
@@ -44,11 +49,20 @@ export default function App() {
     }
   }
 
+  function toggleSelect(index: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(index) ? next.delete(index) : next.add(index);
+      return next;
+    });
+  }
+
   function reset() {
     setPhase("capture");
     setPhoto(null);
     setIngredients([]);
     setRecipes([]);
+    setSelected(new Set());
     setError(null);
   }
 
@@ -91,7 +105,8 @@ export default function App() {
 
         {phase === "recipes" && (
           <section className="stack">
-            <RecipeList recipes={recipes} />
+            <RecipeList recipes={recipes} selected={selected} onToggleSelect={toggleSelect} />
+            <ShoppingList recipes={recipes.filter((_, i) => selected.has(i))} />
             <div className="actions">
               <button className="btn btn--ghost" onClick={() => setPhase("ingredients")} disabled={busy}>
                 Edit ingredients
