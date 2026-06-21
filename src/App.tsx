@@ -14,16 +14,23 @@ export default function App() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Polite SR live region: busy-start + success announcements. Errors are NOT
+  // mirrored here — they go to the assertive role="alert" banner only, so a
+  // failure is announced exactly once. Cleared at each request start and reset.
+  const [status, setStatus] = useState("");
 
   async function handlePhoto(dataUrl: string) {
     setPhoto(dataUrl);
     setError(null);
+    setStatus("Analyzing photo…");
     setBusy(true);
     try {
       const found = await analyzeFridge(dataUrl);
+      setStatus(`Found ${found.length} ingredient${found.length === 1 ? "" : "s"}.`);
       setIngredients(found);
       setPhase("ingredients");
     } catch (e) {
+      setStatus("");
       setError(messageFor(e));
     } finally {
       setBusy(false);
@@ -32,12 +39,15 @@ export default function App() {
 
   async function handleGetRecipes() {
     setError(null);
+    setStatus("Finding meal ideas…");
     setBusy(true);
     try {
       const list = await getRecipes(ingredients.map((i) => i.name));
+      setStatus(`${list.length} meal idea${list.length === 1 ? "" : "s"} ready.`);
       setRecipes(list);
       setPhase("recipes");
     } catch (e) {
+      setStatus("");
       setError(messageFor(e));
     } finally {
       setBusy(false);
@@ -50,6 +60,7 @@ export default function App() {
     setIngredients([]);
     setRecipes([]);
     setError(null);
+    setStatus("");
   }
 
   return (
@@ -103,6 +114,10 @@ export default function App() {
           </section>
         )}
       </main>
+
+      <div className="visually-hidden" role="status" aria-live="polite">
+        {status}
+      </div>
 
       <footer className="app__footer">
         Powered by Gemini · meal ideas are suggestions — check labels for allergies.
