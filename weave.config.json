@@ -1,0 +1,14 @@
+{
+  "repoRoot": ".",
+  "ticketsRoot": ".tickets",
+  "port": 5175,
+  "smoke": {
+    "start": "bun run build && PORT={PORT} bun run serve",
+    "url": "http://127.0.0.1:{PORT}",
+    "routes": ["/"],
+    "readySelector": ".app",
+    "consoleErrorAllowlist": ["ResizeObserver loop"],
+    "bootTimeoutMs": 120000,
+    "settleMs": 2500
+  }
+}

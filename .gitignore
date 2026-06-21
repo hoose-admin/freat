@@ -14,5 +14,9 @@ bun.lock
 # weave dashboard cache (rebuilt on demand)
 .weave/cache/
 
+# vite / pwa dev artifacts
+.vite/
+dev-dist/
+
 # os
 .DS_Store

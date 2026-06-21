@@ -1,0 +1,152 @@
+// Central path + port resolver for the weave dashboard.
+//
+// Resolution order (highest precedence first):
+//   1. WEAVE_* environment variables
+//   2. weave.config.json at the repo root (or the path in $WEAVE_CONFIG)
+//   3. Relative defaults — the vendored layout, where `.weave/` sits at the
+//      repo root beside `.tickets/` and `.claude/`.
+//
+// A vendored install needs none of this: the defaults resolve correctly because
+// `.weave/` is a direct child of the repo root. The overrides exist so the app
+// can also run against a ticket store / repo located elsewhere (sidecar, CI,
+// tests).
+
+import { join, isAbsolute } from "node:path";
+import { readFileSync } from "node:fs";
+
+const HERE = import.meta.dir; // <repo>/.weave
+const DEFAULT_REPO_ROOT = join(HERE, ".."); // <repo>
+
+function abs(base: string, p: string): string {
+  return isAbsolute(p) ? p : join(base, p);
+}
+
+// Raw `smoke` block as it appears in weave.config.json (all optional). Absent
+// or missing `start` ⇒ the smoke feature is off for this repo.
+type SmokeConfigFile = {
+  start?: string; // REQUIRED to enable. {PORT} token is substituted per run.
+  cwd?: string;
+  url?: string;
+  routes?: string[];
+  readySelector?: string;
+  spinnerSelectors?: string[];
+  consoleErrorAllowlist?: string[];
+  requestFailedAllowlist?: string[];
+  bootTimeoutMs?: number;
+  navTimeoutMs?: number;
+  settleMs?: number;
+  retriesPerRoute?: number;
+  env?: Record<string, string>;
+  viewport?: { width: number; height: number };
+};
+
+type ConfigFile = {
+  repoRoot?: string;
+  ticketsRoot?: string;
+  adrsRoot?: string;
+  port?: number;
+  smoke?: SmokeConfigFile;
+};
+
+function loadConfigFile(repoRoot: string): ConfigFile {
+  const path = process.env.WEAVE_CONFIG ?? join(repoRoot, "weave.config.json");
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as ConfigFile;
+  } catch {
+    return {};
+  }
+}
+
+const envRepoRoot = process.env.WEAVE_REPO_ROOT;
+const probeRoot = envRepoRoot ? abs(process.cwd(), envRepoRoot) : DEFAULT_REPO_ROOT;
+const cfg = loadConfigFile(probeRoot);
+
+export const REPO_ROOT: string = envRepoRoot
+  ? abs(process.cwd(), envRepoRoot)
+  : cfg.repoRoot
+    ? abs(DEFAULT_REPO_ROOT, cfg.repoRoot)
+    : DEFAULT_REPO_ROOT;
+
+export const TICKETS_ROOT: string = process.env.WEAVE_TICKETS_ROOT
+  ? abs(process.cwd(), process.env.WEAVE_TICKETS_ROOT)
+  : cfg.ticketsRoot
+    ? abs(REPO_ROOT, cfg.ticketsRoot)
+    : join(REPO_ROOT, ".tickets");
+
+export const ADRS_ROOT: string = process.env.WEAVE_ADRS_ROOT
+  ? abs(process.cwd(), process.env.WEAVE_ADRS_ROOT)
+  : cfg.adrsRoot
+    ? abs(REPO_ROOT, cfg.adrsRoot)
+    : join(TICKETS_ROOT, "ADRs");
+
+export const SKILLS_ROOT: string = join(REPO_ROOT, ".claude", "skills");
+
+export const PORT: number = process.env.PORT
+  ? Number(process.env.PORT)
+  : typeof cfg.port === "number"
+    ? cfg.port
+    : 5174;
+
+// ── smoke verification ───────────────────────────────────────────────────────
+// Optional headless-browser smoke check (see lib/smoke.ts). Resolved here so the
+// harness and CLI share one source of truth.
+
+export type SmokeConfig = {
+  start: string;
+  cwd: string; // absolute — where `start` runs
+  url: string; // may contain a {PORT} token, substituted per run
+  routes: string[];
+  readySelector: string | null;
+  spinnerSelectors: string[];
+  consoleErrorAllowlist: string[];
+  requestFailedAllowlist: string[];
+  bootTimeoutMs: number;
+  navTimeoutMs: number;
+  settleMs: number;
+  retriesPerRoute: number;
+  env: Record<string, string>;
+  viewport: { width: number; height: number };
+};
+
+// Resolved smoke config, or null when the target declares none (feature off, the
+// no-op path for CLI/library targets). A `smoke` block without `start` is treated
+// as absent — without a boot command there's nothing to smoke.
+export const SMOKE: SmokeConfig | null = (() => {
+  const s = cfg.smoke;
+  if (!s || typeof s.start !== "string" || !s.start.trim()) return null;
+  return {
+    // RELATIVE offset (default "."), resolved in lib/smoke.ts against the working
+    // copy that's actually running — the chaos worktree in chaos mode, the repo
+    // otherwise — so smoke boots the edited code, not a fixed REPO_ROOT.
+    start: s.start,
+    cwd: s.cwd ?? ".",
+    url: s.url ?? "http://127.0.0.1:{PORT}",
+    routes: s.routes && s.routes.length ? s.routes : ["/"],
+    readySelector: s.readySelector ?? null,
+    spinnerSelectors: s.spinnerSelectors ?? [],
+    consoleErrorAllowlist: s.consoleErrorAllowlist ?? [],
+    requestFailedAllowlist: s.requestFailedAllowlist ?? [],
+    bootTimeoutMs: s.bootTimeoutMs ?? 60_000,
+    navTimeoutMs: s.navTimeoutMs ?? 15_000,
+    settleMs: s.settleMs ?? 1_500,
+    retriesPerRoute: s.retriesPerRoute ?? 1,
+    env: s.env ?? {},
+    viewport: s.viewport ?? { width: 1280, height: 800 },
+  };
+})();
+
+// Repo-local Playwright browser cache — NEVER ~/.cache/ms-playwright. The harness
+// exports PLAYWRIGHT_BROWSERS_PATH=this both when provisioning and when launching,
+// so browsers stay inside the repo (gitignored) and never go machine-global.
+// Anchored at REPO_ROOT (not HERE) so chaos worktrees — whose own .weave/cache is
+// absent (gitignored, not committed) — share the ROOT repo's provisioned browsers.
+export const SMOKE_BROWSERS_PATH: string =
+  process.env.PLAYWRIGHT_BROWSERS_PATH || join(REPO_ROOT, ".weave", "cache", "browsers");
+
+// Per-run smoke artifacts (result.json + screenshots). Also REPO_ROOT-anchored so
+// they survive the supervisor removing the worktree after a chaos run.
+export const SMOKE_ARTIFACTS_DIR: string = join(REPO_ROOT, ".weave", "cache", "smoke");
+
+// Dedicated free-port range for smoke app-boots — non-overlapping with the
+// terminal allocator's 7700–7799 so the two never contend.
+export const SMOKE_PORT_RANGE = { start: 5800, end: 5899 } as const;
