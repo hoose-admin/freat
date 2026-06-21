@@ -68,7 +68,9 @@ export default function App() {
           </div>
         )}
 
-        {phase === "capture" && <PhotoCapture onPhoto={handlePhoto} busy={busy} />}
+        {phase === "capture" && (
+          <PhotoCapture onPhoto={handlePhoto} onError={setError} busy={busy} />
+        )}
 
         {phase === "ingredients" && (
           <section className="stack">
