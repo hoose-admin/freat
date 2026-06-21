@@ -3,15 +3,20 @@ import PhotoCapture from "./components/PhotoCapture";
 import IngredientList from "./components/IngredientList";
 import RecipeList from "./components/RecipeList";
 import { analyzeFridge, getRecipes, ApiRequestError } from "./lib/api";
-import type { Ingredient, Recipe } from "./lib/types";
+import type { Ingredient, Recipe, RecipePreferences } from "./lib/types";
 
 type Phase = "capture" | "ingredients" | "recipes";
+
+const DEFAULT_SERVINGS = 4;
+const MIN_SERVINGS = 1;
+const MAX_SERVINGS = 12;
 
 export default function App() {
   const [phase, setPhase] = useState<Phase>("capture");
   const [photo, setPhoto] = useState<string | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [servings, setServings] = useState(DEFAULT_SERVINGS);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,11 +35,14 @@ export default function App() {
     }
   }
 
-  async function handleGetRecipes() {
+  // The ONE recipe-fetch path. The first call (from "Get meal ideas") passes no
+  // preferences, so behavior is identical to before; the servings stepper calls
+  // it again with `{ servings }` to re-scale quantities via the same /api/recipes.
+  async function fetchRecipes(preferences?: RecipePreferences) {
     setError(null);
     setBusy(true);
     try {
-      const list = await getRecipes(ingredients.map((i) => i.name));
+      const list = await getRecipes(ingredients.map((i) => i.name), preferences);
       setRecipes(list);
       setPhase("recipes");
     } catch (e) {
@@ -44,11 +52,23 @@ export default function App() {
     }
   }
 
+  function handleGetRecipes() {
+    return fetchRecipes();
+  }
+
+  function rescale(next: number) {
+    const target = Math.min(MAX_SERVINGS, Math.max(MIN_SERVINGS, next));
+    if (target === servings) return;
+    setServings(target);
+    return fetchRecipes({ servings: target });
+  }
+
   function reset() {
     setPhase("capture");
     setPhoto(null);
     setIngredients([]);
     setRecipes([]);
+    setServings(DEFAULT_SERVINGS);
     setError(null);
   }
 
@@ -91,6 +111,35 @@ export default function App() {
 
         {phase === "recipes" && (
           <section className="stack">
+            <div className="servings" role="group" aria-label="Scale recipes by servings">
+              <span className="servings__label">Serves</span>
+              <div className="stepper">
+                <button
+                  type="button"
+                  className="stepper__btn"
+                  onClick={() => rescale(servings - 1)}
+                  disabled={busy || servings <= MIN_SERVINGS}
+                  aria-label="Fewer servings"
+                >
+                  −
+                </button>
+                <span className="stepper__value" aria-live="polite" aria-label={`${servings} servings`}>
+                  {servings}
+                </span>
+                <button
+                  type="button"
+                  className="stepper__btn"
+                  onClick={() => rescale(servings + 1)}
+                  disabled={busy || servings >= MAX_SERVINGS}
+                  aria-label="More servings"
+                >
+                  +
+                </button>
+              </div>
+              <span className="servings__hint muted">
+                {busy ? "Rescaling…" : "Adjust to re-scale quantities for your headcount"}
+              </span>
+            </div>
             <RecipeList recipes={recipes} />
             <div className="actions">
               <button className="btn btn--ghost" onClick={() => setPhase("ingredients")} disabled={busy}>

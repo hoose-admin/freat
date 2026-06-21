@@ -302,6 +302,58 @@ body {
   color: #fca5a5;
 }
 
+/* Servings stepper (recipes screen) */
+.servings {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.servings__label {
+  font-weight: 600;
+}
+.servings__hint {
+  font-size: 0.85rem;
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+}
+.stepper__btn {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.stepper__btn:hover:not(:disabled) {
+  background: var(--surface);
+}
+.stepper__btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.stepper__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.stepper__value {
+  min-width: 1.5ch;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
