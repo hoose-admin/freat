@@ -12,6 +12,14 @@ interface Props {
  */
 export default function PhotoCapture({ onPhoto, busy }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // a11y (TKT-123): the transient "Reading photo…" state below is intentionally
+  // NOT announced to screen readers. Reading a local file with FileReader is
+  // sub-perceptual (~<100ms); a polite live-region message that brief is
+  // coalesced/superseded by App's immediately-following "Analyzing photo…"
+  // announcement (TKT-117), so it would add churn, not information — the
+  // meaningful status ("working on your photo") is already covered there.
+  // Announcing it here would also require a second, competing live region,
+  // which CLAUDE.md forbids. Decision recorded in TKT-123 (intentionally silent).
   const [reading, setReading] = useState(false);
 
   function pick() {
