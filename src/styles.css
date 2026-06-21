@@ -218,6 +218,32 @@ body {
 .chip__remove:hover {
   color: var(--danger);
 }
+
+/* Low-confidence ("not sure about these") cluster */
+.unsure {
+  margin-top: 12px;
+}
+.unsure__title {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.chip--unsure {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.4);
+  opacity: 0.85;
+}
+.chip__warn {
+  color: #fbbf24;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.chip__confidence {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 .ingredients__add {
   display: flex;
   gap: 8px;
