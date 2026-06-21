@@ -1,0 +1,14 @@
+{
+  "name": "freat — eat what's in your fridge",
+  "short_name": "freat",
+  "description": "Snap a photo of your fridge and get recipes from what you have.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1115",
+  "theme_color": "#ff6b35",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
