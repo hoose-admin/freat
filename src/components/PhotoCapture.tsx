@@ -38,7 +38,9 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
       <div className="capture__art" aria-hidden="true">
         📸🥕🧀🥦
       </div>
-      <h2 className="capture__heading">What's in the fridge?</h2>
+      <h2 className="capture__heading" tabIndex={-1}>
+        What's in the fridge?
+      </h2>
       <p className="capture__hint">
         Take a photo of your open refrigerator and we'll spot the ingredients.
       </p>

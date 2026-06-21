@@ -5,14 +5,18 @@ interface Props {
 }
 
 export default function RecipeList({ recipes }: Props) {
-  if (recipes.length === 0) {
-    return <p className="muted">No recipes yet. Try adding a few more ingredients.</p>;
-  }
-
   return (
     <section className="recipes">
-      <h2 className="section-title">Meal ideas</h2>
-      <div className="recipe-grid">
+      {/* tabIndex=-1: programmatic focus target for the recipes phase (App moves
+          focus here on phase change). Always rendered so the empty state still
+          has a heading to receive focus. */}
+      <h2 className="section-title" tabIndex={-1}>
+        Meal ideas
+      </h2>
+      {recipes.length === 0 ? (
+        <p className="muted">No recipes yet. Try adding a few more ingredients.</p>
+      ) : (
+        <div className="recipe-grid">
         {recipes.map((r, idx) => (
           <article className="recipe-card" key={`${r.title}-${idx}`}>
             <header className="recipe-card__head">
@@ -43,7 +47,8 @@ export default function RecipeList({ recipes }: Props) {
             </details>
           </article>
         ))}
-      </div>
+        </div>
+      )}
     </section>
   );
 }

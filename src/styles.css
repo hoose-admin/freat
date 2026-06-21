@@ -302,6 +302,14 @@ body {
   color: #fca5a5;
 }
 
+/* Headings used as programmatic focus targets on phase change (tabIndex=-1).
+   They are never reachable via keyboard Tab, so no visible ring is needed — the
+   screen reader announces the heading when focus lands. */
+.capture__heading:focus,
+.section-title:focus {
+  outline: none;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

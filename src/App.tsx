@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PhotoCapture from "./components/PhotoCapture";
 import IngredientList from "./components/IngredientList";
 import RecipeList from "./components/RecipeList";
@@ -14,14 +14,32 @@ export default function App() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Polite SR announcement of async results (see the aria-live region below).
+  const [status, setStatus] = useState("");
+
+  // On phase change, move focus to the new view's primary heading so keyboard /
+  // screen-reader users land in the new content instead of on a now-unmounted
+  // button (focus would otherwise fall to <body>). Skip the initial render so we
+  // don't hijack focus on page load.
+  const mainRef = useRef<HTMLElement>(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    mainRef.current?.querySelector<HTMLElement>("h2")?.focus();
+  }, [phase]);
 
   async function handlePhoto(dataUrl: string) {
     setPhoto(dataUrl);
     setError(null);
+    setStatus("");
     setBusy(true);
     try {
       const found = await analyzeFridge(dataUrl);
       setIngredients(found);
+      setStatus(`Found ${found.length} ingredient${found.length === 1 ? "" : "s"}.`);
       setPhase("ingredients");
     } catch (e) {
       setError(messageFor(e));
@@ -32,10 +50,12 @@ export default function App() {
 
   async function handleGetRecipes() {
     setError(null);
+    setStatus("");
     setBusy(true);
     try {
       const list = await getRecipes(ingredients.map((i) => i.name));
       setRecipes(list);
+      setStatus(`${list.length} meal idea${list.length === 1 ? "" : "s"} ready.`);
       setPhase("recipes");
     } catch (e) {
       setError(messageFor(e));
@@ -50,6 +70,7 @@ export default function App() {
     setIngredients([]);
     setRecipes([]);
     setError(null);
+    setStatus("");
   }
 
   return (
@@ -61,7 +82,13 @@ export default function App() {
         <p className="app__tagline">Snap your fridge, get dinner ideas.</p>
       </header>
 
-      <main className="app__main" aria-busy={busy}>
+      {/* Polite live region for async results. Kept outside <main> (which sets
+          aria-busy) and always present so SRs reliably announce updates. */}
+      <div className="visually-hidden" role="status" aria-live="polite">
+        {status}
+      </div>
+
+      <main className="app__main" aria-busy={busy} ref={mainRef}>
         {error && (
           <div className="banner banner--error" role="alert">
             {error}
