@@ -5,6 +5,7 @@
 import type {
   AnalyzeResponse,
   ApiError,
+  HealthResponse,
   Ingredient,
   RecipePreferences,
   RecipesResponse,
@@ -21,14 +22,10 @@ export class ApiRequestError extends Error {
   }
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    res = await fetch(path, init);
   } catch {
     throw new ApiRequestError("Network error — is the server running?", 0, "NETWORK");
   }
@@ -37,6 +34,19 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     throw new ApiRequestError(data.error ?? `Request failed (${res.status})`, res.status, data.code);
   }
   return data as T;
+}
+
+function postJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Proactive readiness probe — safe to call on mount (no Gemini call server-side). */
+export function getHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>("/api/health");
 }
 
 /** Strip the `data:<mime>;base64,` prefix a FileReader data URL carries. */

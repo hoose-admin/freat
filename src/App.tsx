@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PhotoCapture from "./components/PhotoCapture";
 import IngredientList from "./components/IngredientList";
 import RecipeList from "./components/RecipeList";
-import { analyzeFridge, getRecipes, ApiRequestError } from "./lib/api";
-import type { Ingredient, Recipe } from "./lib/types";
+import { analyzeFridge, getRecipes, getHealth, ApiRequestError } from "./lib/api";
+import type { HealthResponse, Ingredient, Recipe } from "./lib/types";
 
 type Phase = "capture" | "ingredients" | "recipes";
 
@@ -14,6 +14,19 @@ export default function App() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [demoDismissed, setDemoDismissed] = useState(false);
+
+  // Proactively probe AI readiness once on mount. /api/health makes NO Gemini
+  // call (see ADR-001 / handlers.ts), so this honors the "AI is lazy" rule.
+  // Swallow failures so a missing/erroring probe never logs a console error.
+  useEffect(() => {
+    getHealth()
+      .then(setHealth)
+      .catch(() => {});
+  }, []);
+
+  const showDemoBanner = health != null && !health.geminiConfigured && !demoDismissed;
 
   async function handlePhoto(dataUrl: string) {
     setPhoto(dataUrl);
@@ -59,9 +72,35 @@ export default function App() {
           <span aria-hidden="true">🧊</span> Freat
         </h1>
         <p className="app__tagline">Snap your fridge, get dinner ideas.</p>
+        {health && (
+          <p
+            className={`ai-pill ai-pill--${health.geminiConfigured ? "ready" : "off"}`}
+            role="status"
+          >
+            <span className="ai-pill__dot" aria-hidden="true" />
+            {health.geminiConfigured ? "AI ready" : "AI not configured"}
+          </p>
+        )}
       </header>
 
       <main className="app__main" aria-busy={busy}>
+        {showDemoBanner && (
+          <div className="banner banner--info" role="status">
+            <span>
+              <strong>Demo mode.</strong> No Gemini key is configured, so analyzing a
+              photo and getting meal ideas won't run yet. Add a key to your server
+              <code>.env</code> and restart to enable AI.
+            </span>
+            <button
+              className="banner__dismiss"
+              onClick={() => setDemoDismissed(true)}
+              aria-label="Dismiss demo-mode notice"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {error && (
           <div className="banner banner--error" role="alert">
             {error}
