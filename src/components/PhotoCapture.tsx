@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 
 interface Props {
   onPhoto: (dataUrl: string) => void;
+  onSample: () => void;
   busy: boolean;
 }
 
@@ -10,7 +11,7 @@ interface Props {
  * the rear camera and desktops open a file picker. (A live getUserMedia preview
  * is a tracked enhancement — see the backlog.)
  */
-export default function PhotoCapture({ onPhoto, busy }: Props) {
+export default function PhotoCapture({ onPhoto, onSample, busy }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [reading, setReading] = useState(false);
 
@@ -44,6 +45,9 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
       </p>
       <button className="btn btn--primary btn--lg" onClick={pick} disabled={disabled}>
         {disabled ? "Reading photo…" : "Take / choose a photo"}
+      </button>
+      <button className="btn btn--ghost" onClick={onSample} disabled={disabled}>
+        Try a sample fridge
       </button>
       <input
         ref={inputRef}

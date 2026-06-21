@@ -3,6 +3,7 @@ import PhotoCapture from "./components/PhotoCapture";
 import IngredientList from "./components/IngredientList";
 import RecipeList from "./components/RecipeList";
 import { analyzeFridge, getRecipes, ApiRequestError } from "./lib/api";
+import { SAMPLE_INGREDIENTS, SAMPLE_PREVIEW } from "./lib/sample";
 import type { Ingredient, Recipe } from "./lib/types";
 
 type Phase = "capture" | "ingredients" | "recipes";
@@ -28,6 +29,16 @@ export default function App() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function handleSample() {
+    // Pure client demo — no photo, no analyze call. Drops straight into the
+    // editable ingredients phase; if no key is set, the recipe step then shows
+    // the existing key-missing nudge.
+    setError(null);
+    setPhoto(SAMPLE_PREVIEW);
+    setIngredients(SAMPLE_INGREDIENTS);
+    setPhase("ingredients");
   }
 
   async function handleGetRecipes() {
@@ -68,7 +79,9 @@ export default function App() {
           </div>
         )}
 
-        {phase === "capture" && <PhotoCapture onPhoto={handlePhoto} busy={busy} />}
+        {phase === "capture" && (
+          <PhotoCapture onPhoto={handlePhoto} onSample={handleSample} busy={busy} />
+        )}
 
         {phase === "ingredients" && (
           <section className="stack">
