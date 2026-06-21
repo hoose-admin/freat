@@ -301,6 +301,40 @@ body {
 .tag--hard {
   color: #fca5a5;
 }
+.tag--ready {
+  color: #86efac;
+  border-color: var(--brand);
+}
+
+/* Ready-now ranking: header row + filter chip + per-card uses count */
+.recipes__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip--filter {
+  cursor: pointer;
+  padding: 6px 14px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+}
+.chip--filter:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.chip--active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #06210f;
+}
+.recipe-card__uses {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 4px 0;
+}
 
 .visually-hidden {
   position: absolute;
