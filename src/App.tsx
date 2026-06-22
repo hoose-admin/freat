@@ -118,11 +118,15 @@ export default function App() {
           <section className="stack">
             <RecipeList recipes={recipes} onEditIngredients={() => setPhase("ingredients")} />
             <div className="actions">
-              <button className="btn btn--ghost" onClick={() => setPhase("ingredients")} disabled={busy}>
-                Edit ingredients
+              <button className="btn btn--ghost" onClick={reset} disabled={busy}>
+                Start over
               </button>
-              <button className="btn btn--primary" onClick={reset} disabled={busy}>
-                New photo
+              <button
+                className="btn btn--primary"
+                onClick={() => setPhase("ingredients")}
+                disabled={busy}
+              >
+                Edit ingredients
               </button>
             </div>
           </section>
