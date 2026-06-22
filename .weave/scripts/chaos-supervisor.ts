@@ -27,7 +27,8 @@ import { existsSync, readFileSync, symlinkSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import { REPO_ROOT, TICKETS_ROOT } from "../weave.config.ts";
-import { listBucket, moveTicket, readTicket } from "../lib/tickets.ts";
+import { listBucket, moveTicket, readTicket, writeTicket } from "../lib/tickets.ts";
+import { reconcile } from "../lib/chaos-merge.ts";
 import {
   type ChaosConfig,
   type ChaosRun,
@@ -476,6 +477,35 @@ async function finalize(run: ChaosRun, status: ChaosRun["status"], reason: strin
   log(`run ${run.id} → ${status}: ${reason}`);
 }
 
+/** Land a just-validated ticket onto main IMMEDIATELY — landing is intrinsic to
+ *  the run, not an external step. With serial builds, the ticket was built on a
+ *  main that already includes every prior landed ticket, so it merges cleanly.
+ *  A rare conflict is requeued for a clean rebuild on the now-richer main. This
+ *  is what makes the run get everything in with zero human nudging. */
+async function autoLand(p: ProcessedTicket): Promise<void> {
+  if (DRY_RUN || p.outcome !== "validating") return;
+  const full = await readTicket(p.id);
+  if (!full || full.bucket !== "5-validating") return;
+  full.frontmatter.chaos_branch = chaosBranch(p.id);
+  await writeTicket(p.id, full.frontmatter, full.body);
+  try {
+    await moveTicket(p.id, "6-complete");
+    const r = await reconcile();
+    if (r.merged.some((m) => m.id === p.id)) log(`⇧ landed ${p.id} → ${r.target}`);
+    for (const c of r.conflicts) {
+      git(["branch", "-D", c.branch]); // built on a stale base — rebuild on richer main
+      const cf = await readTicket(c.id);
+      if (!cf) continue;
+      for (const k of ["merge_conflict", "chaos_branch", "merged", "merge_commit", "completed"]) delete cf.frontmatter[k];
+      await writeTicket(c.id, cf.frontmatter, cf.body);
+      await moveTicket(c.id, "0-backlog");
+      log(`↻ requeued ${c.id} (merge conflict) for clean rebuild`);
+    }
+  } catch (e) {
+    log(`auto-land of ${p.id} failed: ${(e as Error).message}`);
+  }
+}
+
 async function main(): Promise<void> {
   const cfg = loadConfig();
   const resumeId = (() => {
@@ -616,6 +646,7 @@ async function main(): Promise<void> {
     } else {
       run.processed.push(settled.processed);
       log(`✔ ${settled.processed.id} → ${settled.processed.outcome}${settled.processed.branch ? ` (${settled.processed.branch})` : ""}`);
+      await autoLand(settled.processed); // land it now — no waiting for an external lander
     }
     run.in_flight = [...active.keys()];
     writeRun(run);
