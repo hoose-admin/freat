@@ -32,7 +32,8 @@ export default function IngredientList({ ingredients, onChange }: Props) {
 
       {ingredients.length === 0 ? (
         <p className="muted">
-          No ingredients yet — add a few below, or start over with a clearer photo.
+          No ingredients yet — type one in the box below to start, or go back and
+          retake the photo with the fridge well-lit.
         </p>
       ) : (
         <ul className="chips">

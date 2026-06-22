@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import PhotoCapture from "./components/PhotoCapture";
 import IngredientList from "./components/IngredientList";
 import RecipeList from "./components/RecipeList";
+import Loading from "./components/Loading";
 import { analyzeFridge, getRecipes, ApiRequestError } from "./lib/api";
 import type { Ingredient, Recipe } from "./lib/types";
 
@@ -14,8 +15,13 @@ export default function App() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The last AI action attempted, captured so the error banner's Retry can
+  // re-run exactly what failed (analyze with the same photo, or recipes with
+  // the same ingredients) without the user re-doing the input.
+  const lastAction = useRef<(() => void) | null>(null);
 
   async function handlePhoto(dataUrl: string) {
+    lastAction.current = () => handlePhoto(dataUrl);
     setPhoto(dataUrl);
     setError(null);
     setBusy(true);
@@ -31,6 +37,7 @@ export default function App() {
   }
 
   async function handleGetRecipes() {
+    lastAction.current = () => handleGetRecipes();
     setError(null);
     setBusy(true);
     try {
@@ -50,6 +57,7 @@ export default function App() {
     setIngredients([]);
     setRecipes([]);
     setError(null);
+    lastAction.current = null;
   }
 
   return (
@@ -62,36 +70,53 @@ export default function App() {
       </header>
 
       <main className="app__main" aria-busy={busy}>
-        {error && (
+        {error && !busy && (
           <div className="banner banner--error" role="alert">
-            {error}
+            <span className="banner__msg">{error}</span>
+            {lastAction.current && (
+              <button
+                className="btn btn--ghost btn--sm"
+                onClick={() => lastAction.current?.()}
+              >
+                Retry
+              </button>
+            )}
           </div>
         )}
 
-        {phase === "capture" && <PhotoCapture onPhoto={handlePhoto} busy={busy} />}
+        {phase === "capture" &&
+          (busy ? (
+            <Loading label="Looking at your fridge…" />
+          ) : (
+            <PhotoCapture onPhoto={handlePhoto} busy={busy} />
+          ))}
 
         {phase === "ingredients" && (
           <section className="stack">
             {photo && <img className="preview" src={photo} alt="Your fridge" />}
             <IngredientList ingredients={ingredients} onChange={setIngredients} />
-            <div className="actions">
-              <button className="btn btn--ghost" onClick={reset} disabled={busy}>
-                Start over
-              </button>
-              <button
-                className="btn btn--primary"
-                onClick={handleGetRecipes}
-                disabled={busy || ingredients.length === 0}
-              >
-                {busy ? "Thinking…" : "Get meal ideas"}
-              </button>
-            </div>
+            {busy ? (
+              <Loading label="Cooking up meal ideas…" />
+            ) : (
+              <div className="actions">
+                <button className="btn btn--ghost" onClick={reset}>
+                  Start over
+                </button>
+                <button
+                  className="btn btn--primary"
+                  onClick={handleGetRecipes}
+                  disabled={ingredients.length === 0}
+                >
+                  Get meal ideas
+                </button>
+              </div>
+            )}
           </section>
         )}
 
         {phase === "recipes" && (
           <section className="stack">
-            <RecipeList recipes={recipes} />
+            <RecipeList recipes={recipes} onEditIngredients={() => setPhase("ingredients")} />
             <div className="actions">
               <button className="btn btn--ghost" onClick={() => setPhase("ingredients")} disabled={busy}>
                 Edit ingredients
