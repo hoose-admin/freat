@@ -408,6 +408,67 @@ body {
   outline-offset: 1px;
 }
 
+/* Recipe preferences (ingredients screen) — dietary toggles + max cook time.
+   Accessible by construction: fieldset/legend, real <label>s, visible focus. */
+.prefs {
+  display: grid;
+  gap: 14px;
+}
+.prefs__group {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px 14px;
+}
+.prefs__legend {
+  padding: 0 6px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.prefs__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.prefs__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+.prefs__check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+}
+/* Surface the keyboard focus ring on the group so a focused checkbox is obvious. */
+.prefs__group:has(input:focus-visible) {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.prefs__time {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.prefs__time-label {
+  font-weight: 600;
+  color: var(--muted);
+}
+.prefs__select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 1rem;
+}
+.prefs__select:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
 /* Servings stepper (recipes screen) — re-requests the list for a headcount */
 .servings {
   display: flex;
