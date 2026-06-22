@@ -105,6 +105,26 @@ body {
   gap: 18px;
 }
 
+/* Phase enter transition: each phase swaps the whole <main> body, remounting
+   the container (.capture / .stack), so a CSS mount animation re-fires on every
+   phase change and ties the new screen to the tap that produced it. Uses only
+   opacity + transform (no layout-affecting props → no layout shift / CLS).
+   Neutralized under prefers-reduced-motion below. */
+@keyframes phase-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.capture,
+.stack {
+  animation: phase-enter 180ms ease-out;
+}
+
 /* Capture */
 .capture {
   background: var(--surface);
@@ -269,12 +289,6 @@ body {
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  /* keep a slow turn — a frozen spinner reads as "broken", not "still" */
-  .spinner {
-    animation-duration: 1.8s;
   }
 }
 
@@ -718,4 +732,35 @@ body {
 }
 .cook__nav .btn {
   flex: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced-motion baseline (global). The app's first app-wide honoring of
+   prefers-reduced-motion: collapse every animation/transition so content
+   renders at its final state with no movement — the phase-enter fade snaps in,
+   and the .btn transform/transitions are neutralized. Future motion is guarded
+   by default. Per-component reduced-motion exceptions that need a *final state*
+   (e.g. .step-timer--done above) still set it themselves.
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* .btn nudges on press (transform) — neutralize the movement explicitly;
+     the transition above is already collapsed. */
+  .btn:active {
+    transform: none !important;
+  }
+  /* Exception: an indeterminate spinner frozen mid-turn reads as "broken", not
+     "still". Keep it turning continuously, just slower. (Folded in from the
+     former standalone .spinner block.) */
+  .spinner {
+    animation-duration: 1.8s !important;
+    animation-iteration-count: infinite !important;
+  }
 }
