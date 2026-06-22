@@ -178,12 +178,17 @@ body {
 
 /* Ingredients */
 .ingredients,
+.pantry,
 .recipes {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
   box-shadow: var(--shadow);
+}
+.pantry__hint {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
 }
 .chips {
   list-style: none;
@@ -204,6 +209,12 @@ body {
 }
 .chip__label {
   text-transform: capitalize;
+}
+/* Pantry staples read differently from photo-detected ingredient chips so the
+   source is clear: a brand-tinted surface + accent border. */
+.chip--pantry {
+  background: rgba(22, 163, 74, 0.18);
+  border-color: var(--brand);
 }
 .chip__remove {
   border: none;

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import PhotoCapture from "./components/PhotoCapture";
 import IngredientList from "./components/IngredientList";
+import PantryStaples from "./components/PantryStaples";
 import RecipeList from "./components/RecipeList";
 import { analyzeFridge, getRecipes, ApiRequestError } from "./lib/api";
+import { loadPantry, savePantry } from "./lib/pantry";
 import type { Ingredient, Recipe } from "./lib/types";
 
 type Phase = "capture" | "ingredients" | "recipes";
@@ -11,9 +13,15 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>("capture");
   const [photo, setPhoto] = useState<string | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [pantry, setPantry] = useState<string[]>(() => loadPantry());
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function updatePantry(next: string[]) {
+    setPantry(next);
+    savePantry(next);
+  }
 
   async function handlePhoto(dataUrl: string) {
     setPhoto(dataUrl);
@@ -34,7 +42,19 @@ export default function App() {
     setError(null);
     setBusy(true);
     try {
-      const list = await getRecipes(ingredients.map((i) => i.name));
+      // Union the photo-detected ingredients with the always-on-hand pantry
+      // staples, deduped case-insensitively (first spelling wins), so recipes
+      // stop flagging staples as missing. Empty pantry → just the ingredients.
+      const seen = new Set<string>();
+      const names: string[] = [];
+      for (const name of [...ingredients.map((i) => i.name), ...pantry]) {
+        const key = name.trim().toLowerCase();
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          names.push(name);
+        }
+      }
+      const list = await getRecipes(names);
       setRecipes(list);
       setPhase("recipes");
     } catch (e) {
@@ -74,6 +94,7 @@ export default function App() {
           <section className="stack">
             {photo && <img className="preview" src={photo} alt="Your fridge" />}
             <IngredientList ingredients={ingredients} onChange={setIngredients} />
+            <PantryStaples staples={pantry} onChange={updatePantry} />
             <div className="actions">
               <button className="btn btn--ghost" onClick={reset} disabled={busy}>
                 Start over
