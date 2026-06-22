@@ -5,6 +5,7 @@
 import {
   analyzeIngredients,
   suggestRecipes,
+  remixRecipe,
   geminiConfigured,
   geminiModel,
   GeminiKeyMissingError,
@@ -15,6 +16,8 @@ import type {
   HealthResponse,
   RecipesRequest,
   RecipesResponse,
+  RemixRequest,
+  RemixResponse,
 } from "../src/lib/types.ts";
 
 function json(body: unknown, status = 200): Response {
@@ -68,6 +71,25 @@ export async function handleApi(req: Request): Promise<Response | null> {
       }
       const recipes = await suggestRecipes({ ingredients, preferences: body.preferences });
       return json({ recipes } satisfies RecipesResponse);
+    } catch (e) {
+      return errorResponse(e);
+    }
+  }
+
+  // Remix ONE dish in place. Same key-missing → 503 path as the other AI routes
+  // (errorResponse maps GeminiKeyMissingError); no new error code or shape.
+  if (url.pathname === "/api/recipes/remix" && req.method === "POST") {
+    try {
+      const body = (await req.json()) as RemixRequest;
+      const tweak = typeof body?.tweak === "string" ? body.tweak.trim() : "";
+      if (!body?.base || typeof body.base.title !== "string" || !tweak) {
+        return json({ error: "base (Recipe) and a non-empty tweak are required", code: "BAD_REQUEST" }, 400);
+      }
+      const ingredients = Array.isArray(body.ingredients)
+        ? body.ingredients.map((s) => String(s).trim()).filter(Boolean)
+        : [];
+      const recipe = await remixRecipe({ base: body.base, tweak, ingredients });
+      return json({ recipe } satisfies RemixResponse);
     } catch (e) {
       return errorResponse(e);
     }

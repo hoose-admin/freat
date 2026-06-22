@@ -7,8 +7,10 @@ import type {
   ApiError,
   HealthResponse,
   Ingredient,
+  Recipe,
   RecipePreferences,
   RecipesResponse,
+  RemixResponse,
 } from "./types";
 
 export class ApiRequestError extends Error {
@@ -72,4 +74,15 @@ export async function getRecipes(
 ): Promise<RecipesResponse["recipes"]> {
   const res = await postJson<RecipesResponse>("/api/recipes", { ingredients, preferences });
   return res.recipes;
+}
+
+/** Regenerate ONE dish with a quick tweak. Same data path as the others
+ *  (postJson) — components never call fetch directly. */
+export async function remixRecipe(
+  base: Recipe,
+  tweak: string,
+  ingredients: string[],
+): Promise<Recipe> {
+  const res = await postJson<RemixResponse>("/api/recipes/remix", { base, tweak, ingredients });
+  return res.recipe;
 }
