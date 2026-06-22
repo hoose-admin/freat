@@ -22,6 +22,8 @@ export interface AnalyzeResponse {
 export interface RecipePreferences {
   dietary?: string[];
   maxTimeMinutes?: number;
+  /** Target headcount to scale quantities to. Unset → model's default serving. */
+  servings?: number;
 }
 
 export interface Recipe {

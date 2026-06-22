@@ -109,9 +109,12 @@ function recipePrompt(req: RecipesRequest): string {
   const prefs = req.preferences;
   const dietary = prefs?.dietary?.length ? `\nDietary constraints (must respect): ${prefs.dietary.join(", ")}.` : "";
   const time = prefs?.maxTimeMinutes ? `\nEach recipe should take at most ${prefs.maxTimeMinutes} minutes.` : "";
+  const servings = prefs?.servings
+    ? `\nScale every recipe to serve exactly ${prefs.servings} ${prefs.servings === 1 ? "person" : "people"}: write the quantities in steps[] and missingIngredients[] for that headcount.`
+    : "";
   return `You are a creative home cook. Given the ingredients a user has on hand, suggest meal ideas they could realistically make.
 
-Ingredients on hand: ${req.ingredients.join(", ")}.${dietary}${time}
+Ingredients on hand: ${req.ingredients.join(", ")}.${dietary}${time}${servings}
 
 Return ONLY a JSON array of 3-6 recipes. Each element:
 {"title": string, "description": string, "usesIngredients": string[], "missingIngredients": string[], "steps": string[], "timeMinutes": number, "difficulty": "easy"|"medium"|"hard"}
