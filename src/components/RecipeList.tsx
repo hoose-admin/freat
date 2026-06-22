@@ -1,4 +1,5 @@
 import type { Recipe } from "../lib/types";
+import StepText from "./StepText";
 
 interface Props {
   recipes: Recipe[];
@@ -51,7 +52,9 @@ export default function RecipeList({ recipes, onEditIngredients }: Props) {
               <summary>Steps</summary>
               <ol>
                 {r.steps.map((step, i) => (
-                  <li key={i}>{step}</li>
+                  <li key={i}>
+                    <StepText text={step} />
+                  </li>
                 ))}
               </ol>
             </details>
