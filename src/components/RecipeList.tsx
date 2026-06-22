@@ -6,7 +6,11 @@ interface Props {
 
 export default function RecipeList({ recipes }: Props) {
   if (recipes.length === 0) {
-    return <p className="muted">No recipes yet. Try adding a few more ingredients.</p>;
+    return (
+      <p className="muted">
+        No recipes matched. Tap <strong>Edit ingredients</strong> to add a few more, then try again.
+      </p>
+    );
   }
 
   return (
