@@ -45,6 +45,13 @@ export interface RecipesResponse {
   recipes: Recipe[];
 }
 
+/** GET /api/health — cheap readiness probe; makes NO Gemini call. */
+export interface HealthResponse {
+  ok: boolean;
+  geminiConfigured: boolean;
+  model: string;
+}
+
 export interface ApiError {
   error: string;
   code?: string;

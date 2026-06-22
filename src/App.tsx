@@ -4,8 +4,8 @@ import IngredientList from "./components/IngredientList";
 import RecipeList from "./components/RecipeList";
 import ShoppingList from "./components/ShoppingList";
 import Loading from "./components/Loading";
-import { analyzeFridge, getRecipes, ApiRequestError } from "./lib/api";
-import type { Ingredient, Recipe, RecipePreferences } from "./lib/types";
+import { analyzeFridge, getRecipes, getHealth, ApiRequestError } from "./lib/api";
+import type { Ingredient, Recipe, RecipePreferences, HealthResponse } from "./lib/types";
 
 type Phase = "capture" | "ingredients" | "recipes";
 
@@ -29,6 +29,12 @@ export default function App() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Proactive AI-readiness probe (TKT-133). Fetched once on mount from
+  // /api/health (NOT a Gemini call — ADR-001), so the header can show whether
+  // the key is configured before the user wastes a photo on a dead analyze.
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  // The demo-mode banner is dismissible for the session.
+  const [demoDismissed, setDemoDismissed] = useState(false);
   // Polite SR announcement for async completion (analyze / recipes). One
   // always-present live region (below) reads this; a count message is the
   // payload. Kept separate from `error` (role="alert") and `busy` (aria-busy).
@@ -52,6 +58,14 @@ export default function App() {
     }
     mainRef.current?.querySelector<HTMLElement>("h2")?.focus();
   }, [phase]);
+
+  // Probe AI readiness once on mount. The .catch swallows a down/erroring probe
+  // so it never logs a console error (keeps the smoke gate green with no key).
+  useEffect(() => {
+    getHealth()
+      .then(setHealth)
+      .catch(() => {});
+  }, []);
 
   async function handlePhoto(dataUrl: string) {
     lastAction.current = () => handlePhoto(dataUrl);
@@ -139,9 +153,35 @@ export default function App() {
           <span aria-hidden="true">🧊</span> Freat
         </h1>
         <p className="app__tagline">Snap your fridge, get dinner ideas.</p>
+        {health && (
+          <p
+            className={`ai-pill ai-pill--${health.geminiConfigured ? "ready" : "off"}`}
+            role="status"
+          >
+            <span className="ai-pill__dot" aria-hidden="true" />
+            {health.geminiConfigured ? "AI ready" : "AI not configured"}
+          </p>
+        )}
       </header>
 
       <main className="app__main" aria-busy={busy} ref={mainRef}>
+        {health && !health.geminiConfigured && !demoDismissed && (
+          <div className="banner banner--info" role="status">
+            <span className="banner__msg">
+              Demo mode — no Gemini key is configured, so analyzing a photo and getting
+              meal ideas won&rsquo;t work yet. Add a key to <code>.env</code> and restart
+              the server to switch the AI on.
+            </span>
+            <button
+              className="banner__dismiss btn btn--ghost btn--sm"
+              onClick={() => setDemoDismissed(true)}
+              aria-label="Dismiss demo-mode notice"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {error && !busy && (
           <div className="banner banner--error" role="alert">
             <span className="banner__msg">{error}</span>

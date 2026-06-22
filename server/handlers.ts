@@ -12,6 +12,7 @@ import {
 import type {
   AnalyzeRequest,
   AnalyzeResponse,
+  HealthResponse,
   RecipesRequest,
   RecipesResponse,
 } from "../src/lib/types.ts";
@@ -40,7 +41,7 @@ export async function handleApi(req: Request): Promise<Response | null> {
 
   // Health check — cheap, no Gemini call. Useful for smoke + readiness.
   if (url.pathname === "/api/health" && req.method === "GET") {
-    return json({ ok: true, geminiConfigured: geminiConfigured(), model: geminiModel() });
+    return json({ ok: true, geminiConfigured: geminiConfigured(), model: geminiModel() } satisfies HealthResponse);
   }
 
   if (url.pathname === "/api/analyze" && req.method === "POST") {

@@ -5,6 +5,7 @@
 import type {
   AnalyzeResponse,
   ApiError,
+  HealthResponse,
   Ingredient,
   RecipePreferences,
   RecipesResponse,
@@ -21,14 +22,13 @@ export class ApiRequestError extends Error {
   }
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+// The single fetch+error-handling core. Every helper below funnels through
+// here so error mapping and the response shape stay consistent (CLAUDE.md rule
+// 2: one data-fetching path). `init` omitted → a plain GET.
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    res = await fetch(path, init);
   } catch {
     throw new ApiRequestError("Network error — is the server running?", 0, "NETWORK");
   }
@@ -37,6 +37,20 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     throw new ApiRequestError(data.error ?? `Request failed (${res.status})`, res.status, data.code);
   }
   return data as T;
+}
+
+function postJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Probe AI readiness. Safe to call on load — `/api/health` makes NO Gemini
+ *  call (ADR-001), so this does not violate the "AI is lazy" rule. */
+export function getHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>("/api/health");
 }
 
 /** Strip the `data:<mime>;base64,` prefix a FileReader data URL carries. */
