@@ -40,7 +40,7 @@ export default function RecipeList({
   if (recipes.length === 0) {
     return (
       <section className="recipes recipes--empty">
-        <h2 className="section-title">Meal ideas</h2>
+        <h2 className="section-title" tabIndex={-1}>Meal ideas</h2>
         <p className="muted">
           No recipes matched those ingredients yet. Tap <strong>Edit ingredients</strong> to
           add a couple more, then try again.
@@ -58,7 +58,7 @@ export default function RecipeList({
 
   return (
     <section className="recipes">
-      <h2 className="section-title">Meal ideas</h2>
+      <h2 className="section-title" tabIndex={-1}>Meal ideas</h2>
       <div className="recipe-grid">
         {recipes.map((r, idx) => (
           <article

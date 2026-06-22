@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PhotoCapture from "./components/PhotoCapture";
 import IngredientList from "./components/IngredientList";
 import RecipeList from "./components/RecipeList";
@@ -20,19 +20,40 @@ export default function App() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Polite SR announcement for async completion (analyze / recipes). One
+  // always-present live region (below) reads this; a count message is the
+  // payload. Kept separate from `error` (role="alert") and `busy` (aria-busy).
+  const [status, setStatus] = useState("");
   // The last AI action attempted, captured so the error banner's Retry can
   // re-run exactly what failed (analyze with the same photo, or recipes with
   // the same ingredients) without the user re-doing the input.
   const lastAction = useRef<(() => void) | null>(null);
+  // The <main> wrapper, so the phase effect can find the new view's heading.
+  const mainRef = useRef<HTMLElement>(null);
+  // Guards the focus effect from firing on initial mount — load must not steal
+  // focus from the capture button.
+  const firstRender = useRef(true);
+
+  // SPA route-change focus: on every phase change move keyboard/SR focus to the
+  // new view's primary <h2> (each is tabIndex={-1}). Standard WAI/Deque pattern.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    mainRef.current?.querySelector<HTMLElement>("h2")?.focus();
+  }, [phase]);
 
   async function handlePhoto(dataUrl: string) {
     lastAction.current = () => handlePhoto(dataUrl);
     setPhoto(dataUrl);
     setError(null);
+    setStatus("");
     setBusy(true);
     try {
       const found = await analyzeFridge(dataUrl);
       setIngredients(found);
+      setStatus(`Found ${found.length} ingredient${found.length === 1 ? "" : "s"}.`);
       setPhase("ingredients");
     } catch (e) {
       setError(messageFor(e));
@@ -44,6 +65,7 @@ export default function App() {
   async function handleGetRecipes() {
     lastAction.current = () => handleGetRecipes();
     setError(null);
+    setStatus("");
     setBusy(true);
     try {
       const list = await getRecipes(ingredients.map((i) => i.name));
@@ -51,6 +73,7 @@ export default function App() {
       // Default-select every recipe so the shopping list is useful with zero
       // extra taps; the per-card toggle narrows it.
       setSelected(new Set(list.map((_, i) => i)));
+      setStatus(`${list.length} meal idea${list.length === 1 ? "" : "s"} ready.`);
       setPhase("recipes");
     } catch (e) {
       setError(messageFor(e));
@@ -75,6 +98,7 @@ export default function App() {
     setRecipes([]);
     setSelected(new Set());
     setError(null);
+    setStatus("");
     lastAction.current = null;
   }
 
@@ -87,7 +111,7 @@ export default function App() {
         <p className="app__tagline">Snap your fridge, get dinner ideas.</p>
       </header>
 
-      <main className="app__main" aria-busy={busy}>
+      <main className="app__main" aria-busy={busy} ref={mainRef}>
         {error && !busy && (
           <div className="banner banner--error" role="alert">
             <span className="banner__msg">{error}</span>
@@ -158,6 +182,13 @@ export default function App() {
           </section>
         )}
       </main>
+
+      {/* Always-present polite live region: announces async completion counts
+          (analyze / recipes) to screen readers. Outside <main> (which carries
+          aria-busy) and never conditionally unmounted, so SR registers it. */}
+      <div className="visually-hidden" role="status" aria-live="polite">
+        {status}
+      </div>
 
       <footer className="app__footer">
         Powered by Gemini · meal ideas are suggestions — check labels for allergies.
