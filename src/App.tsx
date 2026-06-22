@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import PhotoCapture from "./components/PhotoCapture";
 import IngredientList from "./components/IngredientList";
+import PreferencesControl from "./components/PreferencesControl";
 import RecipeList from "./components/RecipeList";
 import ShoppingList from "./components/ShoppingList";
 import Loading from "./components/Loading";
@@ -15,6 +16,11 @@ const DEFAULT_SERVINGS = 4;
 const MIN_SERVINGS = 1;
 const MAX_SERVINGS = 12;
 
+// Session-scoped dietary/time preferences (NOT the per-photo flow data). Kept in
+// sessionStorage so selections survive a same-tab reload; cleared when the tab
+// closes (Out of Scope: cross-session/localStorage persistence).
+const PREFS_KEY = "freat:preferences";
+
 export default function App() {
   const [phase, setPhase] = useState<Phase>("capture");
   const [photo, setPhoto] = useState<string | null>(null);
@@ -23,6 +29,10 @@ export default function App() {
   // Target headcount for the "Serves N" stepper. Session-only; the first recipe
   // fetch never sends it — only an explicit stepper change re-requests with it.
   const [servings, setServings] = useState(DEFAULT_SERVINGS);
+  // Dietary/time preferences for recipe requests. Lazy-initialized from
+  // sessionStorage (survives a same-tab reload) and owned here so the control on
+  // the ingredients screen and both fetch paths read the same value.
+  const [preferences, setPreferences] = useState<RecipePreferences>(loadPreferences);
   // Indices of the recipes the user has added to the shopping list. Lifted here
   // (the flow's single state owner) so RecipeList toggles and ShoppingList read
   // the same selection — mirrors how IngredientList lifts edits via onChange.
@@ -67,6 +77,16 @@ export default function App() {
       .catch(() => {});
   }, []);
 
+  // Persist preferences for the session. try/catch so blocked storage (private
+  // mode) can't throw a console error and trip the smoke gate.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(PREFS_KEY, JSON.stringify(preferences));
+    } catch {
+      /* storage unavailable — preferences just won't survive reload */
+    }
+  }, [preferences]);
+
   async function handlePhoto(dataUrl: string) {
     lastAction.current = () => handlePhoto(dataUrl);
     setPhoto(dataUrl);
@@ -86,15 +106,15 @@ export default function App() {
   }
 
   // The single recipe-fetch path (the one getRecipes call). `handleGetRecipes`
-  // runs it with no preferences (the first "Get meal ideas" fetch — unchanged);
-  // `rescale` runs it with a target headcount. Both ride the same /api/recipes
-  // contract — no second data path, no new route (CLAUDE.md rule 2, ADR-001).
-  async function fetchRecipes(preferences?: RecipePreferences) {
+  // runs it with the user's dietary/time choices; `rescale` runs it with those
+  // choices PLUS a target headcount. Both ride the same /api/recipes contract —
+  // no second data path, no new route (CLAUDE.md rule 2, ADR-001).
+  async function fetchRecipes(prefs?: RecipePreferences) {
     setError(null);
     setStatus("");
     setBusy(true);
     try {
-      const list = await getRecipes(ingredients.map((i) => i.name), preferences);
+      const list = await getRecipes(ingredients.map((i) => i.name), prefs);
       setRecipes(list);
       // Default-select every recipe so the shopping list is useful with zero
       // extra taps; the per-card toggle narrows it.
@@ -110,8 +130,9 @@ export default function App() {
 
   function handleGetRecipes() {
     lastAction.current = () => handleGetRecipes();
-    // No preferences: the first fetch is byte-identical to before this feature.
-    fetchRecipes();
+    // Send the user's dietary/time choices. cleanPreferences → undefined when
+    // nothing is selected, so the request stays byte-identical to "no prefs".
+    fetchRecipes(cleanPreferences(preferences));
   }
 
   // "Serves N" stepper handler: clamp to [MIN,MAX], remember the choice, and
@@ -121,8 +142,12 @@ export default function App() {
     const clamped = Math.max(MIN_SERVINGS, Math.min(MAX_SERVINGS, next));
     if (clamped === servings) return;
     setServings(clamped);
-    lastAction.current = () => fetchRecipes({ servings: clamped });
-    fetchRecipes({ servings: clamped });
+    // Merge the standing dietary/time filter with the new headcount so re-scaling
+    // doesn't drop the user's diet. Spreading `undefined` is a no-op, so with no
+    // diet selected this stays exactly `{ servings }`.
+    const prefs = { ...cleanPreferences(preferences), servings: clamped };
+    lastAction.current = () => fetchRecipes(prefs);
+    fetchRecipes(prefs);
   }
 
   function toggleSelect(index: number) {
@@ -144,6 +169,8 @@ export default function App() {
     setError(null);
     setStatus("");
     lastAction.current = null;
+    // `preferences` is intentionally left intact — dietary/time are session
+    // settings, not per-photo data, so "Start over" keeps the user's diet.
   }
 
   return (
@@ -207,6 +234,7 @@ export default function App() {
           <section className="stack">
             {photo && <img className="preview" src={photo} alt="Your fridge" />}
             <IngredientList ingredients={ingredients} onChange={setIngredients} />
+            <PreferencesControl value={preferences} onChange={setPreferences} />
             {busy ? (
               <Loading label="Cooking up meal ideas…" />
             ) : (
@@ -293,6 +321,29 @@ export default function App() {
       </footer>
     </div>
   );
+}
+
+// Lazy state initializer: read saved preferences from sessionStorage. Wrapped in
+// try/catch so blocked/malformed storage degrades to empty prefs (no console
+// error → smoke stays green).
+function loadPreferences(): RecipePreferences {
+  try {
+    const raw = sessionStorage.getItem(PREFS_KEY);
+    if (raw) return JSON.parse(raw) as RecipePreferences;
+  } catch {
+    /* unavailable or malformed — fall through to empty */
+  }
+  return {};
+}
+
+// Strip empty fields so an untouched control sends NO `preferences` key (returns
+// undefined → JSON.stringify drops it), keeping a no-selection request identical
+// to before this feature. Never emits `dietary: []`, `maxTimeMinutes: 0`, or `{}`.
+function cleanPreferences(p: RecipePreferences): RecipePreferences | undefined {
+  const out: RecipePreferences = {};
+  if (p.dietary && p.dietary.length) out.dietary = p.dietary;
+  if (p.maxTimeMinutes) out.maxTimeMinutes = p.maxTimeMinutes;
+  return Object.keys(out).length ? out : undefined;
 }
 
 function messageFor(e: unknown): string {
