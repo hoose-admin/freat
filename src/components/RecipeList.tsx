@@ -5,11 +5,20 @@ import CookMode from "./CookMode";
 
 interface Props {
   recipes: Recipe[];
+  /** Indices of the recipes the user has added to the shopping list. */
+  selected: Set<number>;
+  /** Toggle a recipe in/out of the shopping list (lifted to App). */
+  onToggleSelect: (index: number) => void;
   /** Jump back to the ingredient editor — wired to the empty-state next step. */
   onEditIngredients?: () => void;
 }
 
-export default function RecipeList({ recipes, onEditIngredients }: Props) {
+export default function RecipeList({
+  recipes,
+  selected,
+  onToggleSelect,
+  onEditIngredients,
+}: Props) {
   // Which recipe (if any) is open in Cook Mode. State lives here — the grid owns
   // the recipe→overlay interaction and the focus restoration (matches TKT-109).
   const [cookIndex, setCookIndex] = useState<number | null>(null);
@@ -52,7 +61,10 @@ export default function RecipeList({ recipes, onEditIngredients }: Props) {
       <h2 className="section-title">Meal ideas</h2>
       <div className="recipe-grid">
         {recipes.map((r, idx) => (
-          <article className="recipe-card" key={`${r.title}-${idx}`}>
+          <article
+            className={selected.has(idx) ? "recipe-card recipe-card--selected" : "recipe-card"}
+            key={`${r.title}-${idx}`}
+          >
             <header className="recipe-card__head">
               <h3 className="recipe-card__title">{r.title}</h3>
               <div className="recipe-card__meta">
@@ -62,6 +74,15 @@ export default function RecipeList({ recipes, onEditIngredients }: Props) {
                 )}
               </div>
             </header>
+
+            <label className="recipe-card__select">
+              <input
+                type="checkbox"
+                checked={selected.has(idx)}
+                onChange={() => onToggleSelect(idx)}
+              />
+              Add to shopping list
+            </label>
 
             <p className="recipe-card__desc">{r.description}</p>
 
