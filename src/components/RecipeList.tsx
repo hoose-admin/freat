@@ -27,6 +27,12 @@ export default function RecipeList({ recipes }: Props) {
 
             <p className="recipe-card__desc">{r.description}</p>
 
+            {r.usesIngredients.length > 0 && (
+              <p className="recipe-card__uses">
+                <strong>Uses:</strong> {r.usesIngredients.join(", ")}
+              </p>
+            )}
+
             {r.missingIngredients.length > 0 && (
               <p className="recipe-card__missing">
                 <strong>You'll also need:</strong> {r.missingIngredients.join(", ")}

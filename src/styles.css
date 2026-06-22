@@ -269,6 +269,10 @@ body {
   color: var(--muted);
   margin: 8px 0;
 }
+.recipe-card__uses {
+  font-size: 0.9rem;
+  margin: 8px 0;
+}
 .recipe-card__missing {
   font-size: 0.9rem;
   margin: 8px 0;
