@@ -21,6 +21,11 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // The live panel's heading (focused on enter) and the "Open camera" button
+  // (focus restored to it on Cancel / camera-open failure) — the two ends of
+  // this sub-view's focus management. See the [mode] effect and cancelCamera.
+  const liveHeadingRef = useRef<HTMLHeadingElement>(null);
+  const openCameraRef = useRef<HTMLButtonElement>(null);
 
   const [mode, setMode] = useState<Mode>("idle");
   const [reading, setReading] = useState(false); // FileReader in-flight
@@ -42,16 +47,23 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
   // so this is the no-hot-camera guard on every phase transition.
   useEffect(() => stopStream, []);
 
-  // Attach the stream once the <video> has actually rendered (mode flips to
-  // "live"); the element doesn't exist yet at the moment getUserMedia resolves.
+  // On the idle→live swap: attach the stream (the <video> doesn't exist yet at
+  // the moment getUserMedia resolves) and move focus to the live panel's heading
+  // so a keyboard/SR user lands in the new sub-view — the "Open camera" button
+  // they activated is now unmounted. Mirrors App's phase-change focus pass
+  // (TKT-110); focusing the heading also announces the swap (no extra live
+  // region needed). Only ever reached via a user action, so it never steals
+  // focus on load. cancelCamera handles the reverse (live→idle) focus restore.
   useEffect(() => {
+    if (mode !== "live") return;
     const video = videoRef.current;
-    if (mode === "live" && video && streamRef.current) {
+    if (video && streamRef.current) {
       video.srcObject = streamRef.current;
       video.play().catch(() => {
         /* autoplay rejection is non-fatal; the preview still shows */
       });
     }
+    liveHeadingRef.current?.focus();
   }, [mode]);
 
   function pick() {
@@ -78,6 +90,10 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
       stopStream();
       setMode("idle");
       setHint("Couldn't open the camera — choose a photo instead.");
+      // The button disabled itself while `starting`, dropping focus to <body>;
+      // return it to "Open camera" once it re-enables so the keyboard user
+      // isn't stranded (the hint's role="status" announces the failure).
+      restoreOpenCameraFocus();
     } finally {
       setStarting(false);
     }
@@ -104,6 +120,16 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
   function cancelCamera() {
     stopStream();
     setMode("idle");
+    // Restore focus to the control that opened the preview, mirroring Cook
+    // Mode's focus-restore (RecipeList.tsx:33-38) — the button remounts on the
+    // swap back to idle, so focus it after the commit.
+    restoreOpenCameraFocus();
+  }
+
+  // Focus "Open camera" on the next frame — after React has remounted the idle
+  // panel (the button is unmounted while mode === "live"). rAF, like Cook Mode.
+  function restoreOpenCameraFocus() {
+    requestAnimationFrame(() => openCameraRef.current?.focus());
   }
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -125,6 +151,12 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
     <section className="capture">
       {mode === "live" ? (
         <>
+          {/* Focusable heading for the live sub-view: focused on enter so a
+              keyboard/SR user lands here (and hears the swap), mirroring the
+              per-view <h2 tabIndex={-1}> landmark the phase machine uses. */}
+          <h2 className="capture__heading" tabIndex={-1} ref={liveHeadingRef}>
+            Camera preview
+          </h2>
           <video
             ref={videoRef}
             className="capture__video"
@@ -154,6 +186,7 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
 
           {cameraSupported && (
             <button
+              ref={openCameraRef}
               className="btn btn--primary btn--lg"
               onClick={openCamera}
               disabled={disabled}
