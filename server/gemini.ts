@@ -3,7 +3,7 @@
 // Gemini. See ADR-0001 and CLAUDE.md before changing the AI surface.
 
 import { GoogleGenAI } from "@google/genai";
-import type { Ingredient, Recipe, RecipesRequest } from "../src/lib/types.ts";
+import type { Ingredient, Recipe, RecipesRequest, RemixRequest } from "../src/lib/types.ts";
 
 // The key may be named any of these (so setup never has to read your .env).
 // IMPORTANT: a VITE_-prefixed name would be bundled into client JS by Vite —
@@ -133,4 +133,43 @@ export async function suggestRecipes(req: RecipesRequest): Promise<Recipe[]> {
   });
   const recipes = parseJson<Recipe[]>(res.text ?? "[]");
   return recipes.filter((r) => r && typeof r.title === "string" && Array.isArray(r.steps));
+}
+
+function remixPrompt(req: RemixRequest): string {
+  return `You are a creative home cook. The user likes one of your recipe ideas but wants a single quick tweak — regenerate JUST this one dish to honour it. Keep the same JSON shape; do not return prose.
+
+Ingredients on hand: ${req.ingredients.join(", ")}.
+
+Current recipe (JSON):
+${JSON.stringify(req.base)}
+
+Tweak to apply: ${req.tweak}
+
+Return ONLY a single JSON object (NOT an array) for the revised dish:
+{"title": string, "description": string, "usesIngredients": string[], "missingIngredients": string[], "steps": string[], "timeMinutes": number, "difficulty": "easy"|"medium"|"hard"}
+- Apply the tweak faithfully; if it conflicts with the dish, lean toward the tweak even if the title changes.
+- usesIngredients: which of the on-hand ingredients the revised dish uses.
+- missingIngredients: a SHORT list of common staples still needed (assume salt, pepper, oil, water on hand).
+- steps: 3-8 concise imperative steps.
+No prose outside the JSON.`;
+}
+
+export async function remixRecipe(req: RemixRequest): Promise<Recipe> {
+  const ai = client();
+  const res = await ai.models.generateContent({
+    model: MODEL,
+    contents: [{ role: "user", parts: [{ text: remixPrompt(req) }] }],
+    config: { responseMimeType: "application/json", temperature: 0.7 },
+  });
+  const r = parseJson<Recipe>(res.text ?? "{}");
+  if (!r || typeof r.title !== "string" || !Array.isArray(r.steps)) {
+    throw new Error("Remix returned an unusable recipe");
+  }
+  // Normalize the optional-but-required-shape arrays so the client never has to
+  // null-guard them (mirrors the Recipe contract suggestRecipes returns).
+  return {
+    ...r,
+    usesIngredients: Array.isArray(r.usesIngredients) ? r.usesIngredients : [],
+    missingIngredients: Array.isArray(r.missingIngredients) ? r.missingIngredients : [],
+  };
 }

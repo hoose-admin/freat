@@ -5,7 +5,7 @@ import PreferencesControl from "./components/PreferencesControl";
 import RecipeList from "./components/RecipeList";
 import ShoppingList from "./components/ShoppingList";
 import Loading from "./components/Loading";
-import { analyzeFridge, getRecipes, getHealth, ApiRequestError } from "./lib/api";
+import { analyzeFridge, getRecipes, remixRecipe, getHealth, ApiRequestError } from "./lib/api";
 import type { Ingredient, Recipe, RecipePreferences, HealthResponse } from "./lib/types";
 
 type Phase = "capture" | "ingredients" | "recipes";
@@ -37,6 +37,9 @@ export default function App() {
   // (the flow's single state owner) so RecipeList toggles and ShoppingList read
   // the same selection — mirrors how IngredientList lifts edits via onChange.
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  // Indices currently being remixed. Per-card (a Set, not the global `busy`) so a
+  // single dish can regenerate while its siblings stay fully interactive.
+  const [remixing, setRemixing] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Proactive AI-readiness probe (TKT-133). Fetched once on mount from
@@ -159,12 +162,38 @@ export default function App() {
     });
   }
 
+  // Regenerate ONE dish in place. Per-card: only `index` is marked busy (its
+  // chips/input disable + spinner), so sibling cards stay interactive. The
+  // success path swaps just that recipe; selection (keyed by index) is preserved.
+  // Errors ride the same shared banner/Retry path as analyze/recipes.
+  async function handleRemix(index: number, tweak: string) {
+    if (remixing.has(index)) return;
+    lastAction.current = () => handleRemix(index, tweak);
+    setError(null);
+    setStatus("");
+    setRemixing((prev) => new Set(prev).add(index));
+    try {
+      const updated = await remixRecipe(recipes[index], tweak, ingredients.map((i) => i.name));
+      setRecipes((prev) => prev.map((r, i) => (i === index ? updated : r)));
+      setStatus(`Remixed “${updated.title}”.`);
+    } catch (e) {
+      setError(messageFor(e));
+    } finally {
+      setRemixing((prev) => {
+        const next = new Set(prev);
+        next.delete(index);
+        return next;
+      });
+    }
+  }
+
   function reset() {
     setPhase("capture");
     setPhoto(null);
     setIngredients([]);
     setRecipes([]);
     setSelected(new Set());
+    setRemixing(new Set());
     setServings(DEFAULT_SERVINGS);
     setError(null);
     setStatus("");
@@ -288,6 +317,8 @@ export default function App() {
               recipes={recipes}
               selected={selected}
               onToggleSelect={toggleSelect}
+              onRemix={handleRemix}
+              remixing={remixing}
               onEditIngredients={() => setPhase("ingredients")}
             />
             {recipes.length > 0 && (

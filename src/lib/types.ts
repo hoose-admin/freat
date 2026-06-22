@@ -45,6 +45,19 @@ export interface RecipesResponse {
   recipes: Recipe[];
 }
 
+/** POST /api/recipes/remix — regenerate ONE dish with a quick tweak. Reuses the
+ *  `Recipe` shape verbatim (no fork): `base` is the card the user is steering,
+ *  `tweak` is the nudge ("spicier", "make it vegan", …), `ingredients` is the
+ *  same on-hand list the recipes were generated from. */
+export interface RemixRequest {
+  base: Recipe;
+  tweak: string;
+  ingredients: string[];
+}
+export interface RemixResponse {
+  recipe: Recipe;
+}
+
 /** GET /api/health — cheap readiness probe; makes NO Gemini call. */
 export interface HealthResponse {
   ok: boolean;
