@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import PhotoCapture from "./components/PhotoCapture";
 import IngredientList from "./components/IngredientList";
 import RecipeList from "./components/RecipeList";
+import ShoppingList from "./components/ShoppingList";
 import Loading from "./components/Loading";
 import { analyzeFridge, getRecipes, ApiRequestError } from "./lib/api";
 import type { Ingredient, Recipe } from "./lib/types";
@@ -13,6 +14,10 @@ export default function App() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  // Indices of the recipes the user has added to the shopping list. Lifted here
+  // (the flow's single state owner) so RecipeList toggles and ShoppingList read
+  // the same selection — mirrors how IngredientList lifts edits via onChange.
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The last AI action attempted, captured so the error banner's Retry can
@@ -43,6 +48,9 @@ export default function App() {
     try {
       const list = await getRecipes(ingredients.map((i) => i.name));
       setRecipes(list);
+      // Default-select every recipe so the shopping list is useful with zero
+      // extra taps; the per-card toggle narrows it.
+      setSelected(new Set(list.map((_, i) => i)));
       setPhase("recipes");
     } catch (e) {
       setError(messageFor(e));
@@ -51,11 +59,21 @@ export default function App() {
     }
   }
 
+  function toggleSelect(index: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }
+
   function reset() {
     setPhase("capture");
     setPhoto(null);
     setIngredients([]);
     setRecipes([]);
+    setSelected(new Set());
     setError(null);
     lastAction.current = null;
   }
@@ -116,7 +134,15 @@ export default function App() {
 
         {phase === "recipes" && (
           <section className="stack">
-            <RecipeList recipes={recipes} onEditIngredients={() => setPhase("ingredients")} />
+            <RecipeList
+              recipes={recipes}
+              selected={selected}
+              onToggleSelect={toggleSelect}
+              onEditIngredients={() => setPhase("ingredients")}
+            />
+            {recipes.length > 0 && (
+              <ShoppingList recipes={recipes.filter((_, i) => selected.has(i))} />
+            )}
             <div className="actions">
               <button className="btn btn--ghost" onClick={reset} disabled={busy}>
                 Start over

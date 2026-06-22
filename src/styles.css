@@ -248,7 +248,8 @@ body {
 
 /* Ingredients */
 .ingredients,
-.recipes {
+.recipes,
+.shopping {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -304,6 +305,10 @@ body {
   border-color: rgba(251, 191, 36, 0.4);
   opacity: 0.85;
 }
+/* Read-only chip (no remove button) — symmetric padding, used by the shopping list */
+.chip--plain {
+  padding: 6px 14px;
+}
 .chip__warn {
   color: #fbbf24;
   font-size: 0.9rem;
@@ -344,6 +349,25 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
+}
+.recipe-card--selected {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand);
+}
+.recipe-card__select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.recipe-card__select input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+  cursor: pointer;
 }
 .recipe-card__head {
   display: flex;
@@ -400,6 +424,15 @@ body {
 }
 .tag--hard {
   color: #fca5a5;
+}
+
+/* Shopping list */
+.shopping__status {
+  /* Reserve a line so showing/clearing the confirmation never shifts layout. */
+  min-height: 1.25rem;
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
 }
 
 .visually-hidden {
