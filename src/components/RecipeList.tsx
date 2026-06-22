@@ -33,7 +33,8 @@ export default function RecipeList({ recipes, onEditIngredients }: Props) {
       <section className="recipes recipes--empty">
         <h2 className="section-title">Meal ideas</h2>
         <p className="muted">
-          No recipes matched those ingredients yet. Add a couple more and try again.
+          No recipes matched those ingredients yet. Tap <strong>Edit ingredients</strong> to
+          add a couple more, then try again.
         </p>
         {onEditIngredients && (
           <button className="btn btn--ghost" onClick={onEditIngredients}>
