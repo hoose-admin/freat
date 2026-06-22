@@ -136,11 +136,29 @@ function workerSettingsArgs(): string[] {
 
 type Sh = { code: number; stdout: string; stderr: string };
 
+// Chaos must run on the user's logged-in Claude account. Bun auto-loads the
+// repo's .env into this supervisor's process, so strip any inherited provider
+// auth before handing the environment to a `claude -p` worker/scout — without
+// it, Claude Code uses the logged-in (subscription) session.
+const AUTH_OVERRIDE_VARS = [
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_AUTH_TOKEN",
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "CLAUDE_CODE_USE_BEDROCK",
+  "CLAUDE_CODE_USE_VERTEX",
+  "CLAUDE_CODE_USE_FOUNDRY",
+];
+function subscriptionEnv(extra?: Record<string, string>): Record<string, string> {
+  const e: Record<string, string> = { ...(process.env as Record<string, string>), ...(extra ?? {}) };
+  for (const k of AUTH_OVERRIDE_VARS) delete e[k];
+  return e;
+}
+
 function sh(cmd: string, args: string[], cwd?: string, env?: Record<string, string>): Sh {
   const r = spawnSync(cmd, args, {
     cwd,
     encoding: "utf8",
-    env: env ? { ...process.env, ...env } : process.env,
+    env: subscriptionEnv(env),
     stdio: ["ignore", "pipe", "pipe"],
   });
   return { code: r.status ?? 1, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
@@ -257,14 +275,13 @@ async function runWorkerAsync(ticketId: string, worktree: string, cfg: ChaosConf
     ],
     {
       cwd: worktree,
-      env: {
-        ...process.env,
+      env: subscriptionEnv({
         WEAVE_TICKETS_ROOT: TICKETS_ROOT,
         WEAVE_REPO_ROOT: REPO_ROOT,
         PONYTAIL_DEFAULT_MODE: "full", // build child: ponytail ON
         CHAOS_RUN_ID: runId,
         CHAOS_ACTIVE: "1",
-      },
+      }),
       stdout: "pipe",
       stderr: "pipe",
     },

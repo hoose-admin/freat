@@ -1,8 +1,11 @@
 # weave installer source — kept locally for upgrades, hidden from graph scans
 .weave-src/
 
-# dependencies
-node_modules/
+# dependencies — no trailing slash so a `node_modules` SYMLINK is ignored too
+# (chaos worktrees symlink node_modules → root; a trailing-slash pattern only
+# matches the directory, letting `git add -A` stage the symlink and merge a
+# self-referential loop into main. See the foundation history.)
+node_modules
 
 # build output + secrets
 dist/
