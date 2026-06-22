@@ -345,6 +345,57 @@ body {
   outline-offset: 1px;
 }
 
+/* Servings stepper (recipes screen) — re-requests the list for a headcount */
+.servings {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.servings__label {
+  font-weight: 600;
+  color: var(--muted);
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px;
+}
+.stepper__btn {
+  appearance: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.stepper__btn:hover:not(:disabled) {
+  background: var(--brand);
+  color: #04140a;
+}
+.stepper__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.stepper__btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.stepper__value {
+  min-width: 2ch;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Recipes */
 .recipe-grid {
   display: grid;
