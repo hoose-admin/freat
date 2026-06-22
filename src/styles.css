@@ -484,3 +484,98 @@ body {
     color: #04140a;
   }
 }
+
+/* Cook Mode (TKT-126) — full-screen, one-step-at-a-time cooking overlay */
+.recipe-card__actions {
+  display: flex;
+  margin-top: 12px;
+}
+.recipe-card__actions .btn {
+  flex: 1;
+}
+
+.cook {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: radial-gradient(1200px 600px at 50% -10%, #16243f 0%, var(--bg) 60%);
+}
+.cook__panel {
+  height: 100dvh;
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  outline: none;
+}
+.cook__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.cook__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.cook__title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+.cook__close {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.cook__wake {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  font-size: 0.8rem;
+  border-radius: 999px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+}
+.cook__wake--on {
+  color: #86efac;
+  background: rgba(22, 163, 74, 0.12);
+  border-color: rgba(22, 163, 74, 0.4);
+}
+.cook__wake--off {
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.cook__counter {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cook__step {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+.cook__step-text {
+  margin: 0;
+  font-size: clamp(1.5rem, 4.5vw, 2.1rem);
+  line-height: 1.35;
+  font-weight: 500;
+}
+.cook__nav {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+}
+.cook__nav .btn {
+  flex: 1;
+}

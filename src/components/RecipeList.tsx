@@ -1,5 +1,7 @@
+import { useRef, useState } from "react";
 import type { Recipe } from "../lib/types";
 import StepText from "./StepText";
+import CookMode from "./CookMode";
 
 interface Props {
   recipes: Recipe[];
@@ -8,6 +10,24 @@ interface Props {
 }
 
 export default function RecipeList({ recipes, onEditIngredients }: Props) {
+  // Which recipe (if any) is open in Cook Mode. State lives here — the grid owns
+  // the recipe→overlay interaction and the focus restoration (matches TKT-109).
+  const [cookIndex, setCookIndex] = useState<number | null>(null);
+  // The "Cook this" button that opened the overlay, so focus can return to it.
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  function openCook(idx: number, trigger: HTMLButtonElement) {
+    triggerRef.current = trigger;
+    setCookIndex(idx);
+  }
+
+  function closeCook() {
+    setCookIndex(null);
+    // Restore focus to the originating control on the next tick (after unmount).
+    const trigger = triggerRef.current;
+    requestAnimationFrame(() => trigger?.focus());
+  }
+
   if (recipes.length === 0) {
     return (
       <section className="recipes recipes--empty">
@@ -23,6 +43,8 @@ export default function RecipeList({ recipes, onEditIngredients }: Props) {
       </section>
     );
   }
+
+  const cooking = cookIndex !== null ? recipes[cookIndex] : null;
 
   return (
     <section className="recipes">
@@ -64,9 +86,23 @@ export default function RecipeList({ recipes, onEditIngredients }: Props) {
                 ))}
               </ol>
             </details>
+
+            {r.steps.length > 0 && (
+              <div className="recipe-card__actions">
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={(e) => openCook(idx, e.currentTarget)}
+                >
+                  <span aria-hidden="true">👨‍🍳</span> Cook this
+                </button>
+              </div>
+            )}
           </article>
         ))}
       </div>
+
+      {cooking && <CookMode recipe={cooking} onClose={closeCook} />}
     </section>
   );
 }
