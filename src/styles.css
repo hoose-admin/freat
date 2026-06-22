@@ -242,6 +242,13 @@ body {
   margin: 0 0 4px;
   font-size: 1.2rem;
 }
+/* These view headings receive programmatic focus on phase change (the SPA
+   route-change focus pattern). They're never Tab-reachable (tabIndex={-1}),
+   so suppress the focus ring — it would otherwise flash with no keyboard path. */
+.capture__heading:focus,
+.section-title:focus {
+  outline: none;
+}
 .muted {
   color: var(--muted);
 }

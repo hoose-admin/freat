@@ -38,7 +38,7 @@ export default function IngredientList({ ingredients, onChange }: Props) {
 
   return (
     <section className="ingredients">
-      <h2 className="section-title">
+      <h2 className="section-title" tabIndex={-1}>
         Ingredients <span className="muted">({ingredients.length})</span>
       </h2>
 
