@@ -23,7 +23,11 @@ import { listAll, type Bucket, type TicketSummary } from "../lib/tickets.ts";
 import { loadConfig } from "../lib/chaos.ts";
 
 const PICKABLE: ReadonlySet<Bucket> = new Set(["0-backlog", "1-staging"]);
-const DONE: ReadonlySet<Bucket> = new Set(["5-validating", "6-complete", "7-archive"]);
+// deps must be LANDED on main (6-complete merged / archived), not merely
+// validating — a worktree branches from main, so a dep that's only on an
+// unmerged branch isn't visible. The continuous lander merges validating →
+// 6-complete fast, so dependents unblock as soon as their prereq is on main.
+const DONE: ReadonlySet<Bucket> = new Set(["6-complete", "7-archive"]);
 
 const PRIORITY_RANK: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
 

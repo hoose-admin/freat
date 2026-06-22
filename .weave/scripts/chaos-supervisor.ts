@@ -491,7 +491,7 @@ async function main(): Promise<void> {
 
   const startMs = Date.parse(run.started);
   const attempts = new Map<string, number>();
-  const MAX_ATTEMPTS = 2;
+  const MAX_ATTEMPTS = 5;
   let backoffMin = 20;
 
   // Adaptive worker pool: ticketId → its running launchWorker promise. The pool
