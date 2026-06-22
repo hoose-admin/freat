@@ -323,3 +323,104 @@ body {
     width: 100%;
   }
 }
+
+/* Per-card Print / Save-as-PDF control (sits in the recipe-card meta row) */
+.recipe-card__print {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.recipe-card__print:hover {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--text);
+}
+.recipe-card__print:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+/* Print / Save-as-PDF: render one clean recipe card, no app chrome. The card
+   the user clicked carries .recipe-card--print (set in RecipeList); every other
+   card and all chrome is hidden, and its <details> steps are forced open. */
+@media print {
+  @page {
+    margin: 1.5cm;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .app {
+    display: block;
+    min-height: 0;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Hide app chrome and anything that isn't the chosen recipe. */
+  .app__header,
+  .app__footer,
+  .actions,
+  .preview,
+  .banner,
+  .section-title,
+  .recipe-card__print {
+    display: none !important;
+  }
+
+  /* Strip the surface styling off the recipe container. */
+  .recipes {
+    background: none;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+  .recipe-grid {
+    display: block;
+    gap: 0;
+    margin: 0;
+  }
+
+  /* Only the targeted card prints. */
+  .recipe-card {
+    display: none !important;
+  }
+  .recipe-card--print {
+    display: block !important;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: #000;
+  }
+  .recipe-card--print .recipe-card__title {
+    font-size: 1.6rem;
+  }
+  .recipe-card--print .recipe-card__desc,
+  .recipe-card--print .recipe-card__missing {
+    color: #000;
+  }
+  .recipe-card--print .tag {
+    color: #000;
+    background: none;
+    border-color: #999;
+  }
+
+  /* Steps: drop the toggle affordance, show the expanded list. */
+  .recipe-card--print .recipe-card__steps summary {
+    display: none;
+  }
+  .recipe-card--print .recipe-card__steps ol {
+    margin-top: 0;
+  }
+}
