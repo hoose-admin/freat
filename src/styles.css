@@ -55,6 +55,35 @@ body {
   color: var(--muted);
 }
 
+/* AI-status pill (header) — proactive readiness signal from /api/health (TKT-133) */
+.ai-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.ai-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.ai-pill--ready {
+  color: #86efac;
+  border-color: rgba(22, 163, 74, 0.4);
+  background: rgba(22, 163, 74, 0.12);
+}
+.ai-pill--ready .ai-pill__dot {
+  background: var(--brand);
+}
+
 .app__main {
   flex: 1;
   display: flex;
@@ -188,9 +217,29 @@ body {
   gap: 12px;
   flex-wrap: wrap;
 }
+.banner--info {
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.banner--info code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 0.9em;
+}
 .banner__msg {
   flex: 1;
   min-width: 12ch;
+}
+.banner__dismiss {
+  flex-shrink: 0;
 }
 
 /* Loading */
