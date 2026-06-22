@@ -14,6 +14,7 @@ export default function App() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [thinPrompt, setThinPrompt] = useState(false);
 
   async function handlePhoto(dataUrl: string) {
     setPhoto(dataUrl);
@@ -22,6 +23,7 @@ export default function App() {
     try {
       const found = await analyzeFridge(dataUrl);
       setIngredients(found);
+      setThinPrompt(isThinResult(found));
       setPhase("ingredients");
     } catch (e) {
       setError(messageFor(e));
@@ -36,6 +38,7 @@ export default function App() {
     try {
       const list = await getRecipes(ingredients.map((i) => i.name));
       setRecipes(list);
+      setThinPrompt(false);
       setPhase("recipes");
     } catch (e) {
       setError(messageFor(e));
@@ -50,6 +53,7 @@ export default function App() {
     setIngredients([]);
     setRecipes([]);
     setError(null);
+    setThinPrompt(false);
   }
 
   return (
@@ -73,6 +77,25 @@ export default function App() {
         {phase === "ingredients" && (
           <section className="stack">
             {photo && <img className="preview" src={photo} alt="Your fridge" />}
+            {thinPrompt && (
+              <div className="banner banner--notice" role="status">
+                <span className="banner__msg">
+                  Only spotted a few things — retake with the door fully open?
+                </span>
+                <div className="banner__actions">
+                  <button className="btn btn--ghost" onClick={reset} disabled={busy}>
+                    Retake
+                  </button>
+                  <button
+                    className="btn btn--primary"
+                    onClick={() => setThinPrompt(false)}
+                    disabled={busy}
+                  >
+                    Keep going
+                  </button>
+                </div>
+              </div>
+            )}
             <IngredientList ingredients={ingredients} onChange={setIngredients} />
             <div className="actions">
               <button className="btn btn--ghost" onClick={reset} disabled={busy}>
@@ -109,6 +132,25 @@ export default function App() {
       </footer>
     </div>
   );
+}
+
+/**
+ * A "thin" analyze result is weak-but-nonempty: either very few items, or a set
+ * the model itself is broadly unsure about. We only nudge a retake here — the
+ * empty (0-item) case is handled by the ingredient list's own empty state.
+ * Confidence is optional (`gemini.ts` coerces non-numbers to undefined), so the
+ * mean is only trusted when EVERY item reports one — otherwise it's unreliable
+ * and we fall back to the item-count signal alone (avoids good-photo false positives).
+ */
+function isThinResult(items: Ingredient[]): boolean {
+  if (items.length === 0) return false; // empty is the empty-state's job, not a retake nudge
+  if (items.length < 3) return true; // 1–2 items out of an expected 5–25 is suspiciously thin
+  const scores = items.map((i) => i.confidence);
+  if (scores.every((c): c is number => typeof c === "number")) {
+    const mean = scores.reduce((sum, c) => sum + c, 0) / scores.length;
+    if (mean < 0.5) return true;
+  }
+  return false;
 }
 
 function messageFor(e: unknown): string {
