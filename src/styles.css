@@ -110,6 +110,15 @@ body {
   border: 1px solid var(--border);
 }
 
+.capture__video {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #000;
+}
+
 /* Buttons */
 .btn {
   appearance: none;
@@ -153,6 +162,10 @@ body {
   gap: 12px;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+.actions--center {
+  justify-content: center;
+  width: 100%;
 }
 
 /* Banner */
