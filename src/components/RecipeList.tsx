@@ -1,14 +1,16 @@
 import { useRef, useState } from "react";
 import type { Recipe } from "../lib/types";
+import { recipeKey } from "../lib/recipeKey";
 import StepText from "./StepText";
 import CookMode from "./CookMode";
 
 interface Props {
   recipes: Recipe[];
-  /** Indices of the recipes the user has added to the shopping list. */
-  selected: Set<number>;
-  /** Toggle a recipe in/out of the shopping list (lifted to App). */
-  onToggleSelect: (index: number) => void;
+  /** Identities (recipeKey) of the recipes added to the shopping list — keyed on
+   *  recipe identity rather than array index so selection survives reordering. */
+  selected: Set<string>;
+  /** Toggle a recipe in/out of the shopping list by its identity (lifted to App). */
+  onToggleSelect: (key: string) => void;
   /** Regenerate ONE dish with a quick tweak (lifted to App, which owns the
    *  in-place swap). `tweak` is a preset phrase or the free-text nudge. */
   onRemix: (index: number, tweak: string) => void;
@@ -86,7 +88,7 @@ export default function RecipeList({
             key={`${r.title}-${idx}`}
             recipe={r}
             index={idx}
-            selected={selected.has(idx)}
+            selected={selected.has(recipeKey(r))}
             onToggleSelect={onToggleSelect}
             onCook={openCook}
             onRemix={onRemix}
@@ -104,7 +106,7 @@ interface CardProps {
   recipe: Recipe;
   index: number;
   selected: boolean;
-  onToggleSelect: (index: number) => void;
+  onToggleSelect: (key: string) => void;
   onCook: (index: number, trigger: HTMLButtonElement) => void;
   onRemix: (index: number, tweak: string) => void;
   remixing: boolean;
@@ -144,7 +146,7 @@ function RecipeCard({
       </header>
 
       <label className="recipe-card__select">
-        <input type="checkbox" checked={selected} onChange={() => onToggleSelect(idx)} />
+        <input type="checkbox" checked={selected} onChange={() => onToggleSelect(recipeKey(r))} />
         Add to shopping list
       </label>
 
