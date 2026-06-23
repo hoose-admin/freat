@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from "react";
 
 interface Props {
   onPhoto: (dataUrl: string) => void;
+  // Report a read failure upward into App's single assertive error channel
+  // (the `role="alert"` banner). Mirrors `onPhoto` — same upward-report shape,
+  // not a second error mechanism. Used by the FileReader paths in onFile so a
+  // failed/non-string read is perceivable instead of silent. See onFile / TKT-125.
+  onError: (message: string) => void;
   busy: boolean;
   // Optional hook into App's single polite live region (the `status` channel).
   // Used to announce the transient FileReader "Reading photo…" phase to screen
@@ -21,7 +26,7 @@ type Mode = "idle" | "live";
  * The camera is only ever requested on a user action (never on mount), so the
  * app loads with zero console errors when no camera/permission exists.
  */
-export default function PhotoCapture({ onPhoto, busy, onStatus }: Props) {
+export default function PhotoCapture({ onPhoto, onError, busy, onStatus }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -152,8 +157,17 @@ export default function PhotoCapture({ onPhoto, busy, onStatus }: Props) {
     const reader = new FileReader();
     reader.onload = () => {
       setReading(false);
-      if (typeof reader.result === "string") onPhoto(reader.result);
-      else onStatus?.(""); // non-string result: handlePhoto won't run, so clear it
+      if (typeof reader.result === "string") {
+        onPhoto(reader.result);
+      } else {
+        // Non-string result (null/ArrayBuffer — not expected for readAsDataURL,
+        // but possible on a partial/aborted read): the success path won't run, so
+        // it would otherwise be silent. Clear the transient "Reading photo…"
+        // status, then report through the SAME error channel as a read failure so
+        // the user gets real feedback in the role="alert" banner (TKT-125).
+        onStatus?.("");
+        onError("Couldn't read that image. Please try another photo.");
+      }
     };
     // Failed read: handlePhoto never runs, so clear our announcement to avoid a
     // stale "Reading photo…". The error itself is announced separately (TKT-124).
