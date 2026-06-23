@@ -408,13 +408,18 @@ export default function App() {
               <button className="btn btn--ghost" onClick={reset} disabled={busy}>
                 Start over
               </button>
-              <button
-                className="btn btn--primary"
-                onClick={() => setPhase("ingredients")}
-                disabled={busy}
-              >
-                Edit ingredients
-              </button>
+              {/* When recipes is empty, RecipeList's empty-state already renders its
+                  own "Edit ingredients" control (the one its copy names), so suppress
+                  this duplicate here to leave a single, unambiguous affordance (TKT-156). */}
+              {recipes.length > 0 && (
+                <button
+                  className="btn btn--primary"
+                  onClick={() => setPhase("ingredients")}
+                  disabled={busy}
+                >
+                  Edit ingredients
+                </button>
+              )}
             </div>
           </section>
         )}
