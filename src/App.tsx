@@ -167,6 +167,11 @@ export default function App() {
     try {
       const list = await getRecipes(withStaples(ingredients.map((i) => i.name), pantry), prefs);
       setRecipes(list);
+      // Commit the target headcount only now that the matching recipes are on
+      // screen, so a failed rescale never leaves "Serves N" ahead of the
+      // still-displayed older list (TKT-159). Only the rescale path carries
+      // `servings`; the first fetch and the no-servings path leave it untouched.
+      if (prefs?.servings) setServings(prefs.servings);
       // The user chose to proceed — retire the thin-result nudge so it doesn't
       // resurface if they later return here via "Edit ingredients".
       setThinPrompt(false);
@@ -195,7 +200,10 @@ export default function App() {
   function rescale(next: number) {
     const clamped = Math.max(MIN_SERVINGS, Math.min(MAX_SERVINGS, next));
     if (clamped === servings) return;
-    setServings(clamped);
+    // Don't commit `servings` here — fetchRecipes commits it on success, so a
+    // failed re-fetch keeps the stepper matched to the still-displayed recipes
+    // (TKT-159). The stepper buttons are disabled while busy, so the value
+    // simply holds at the prior headcount until the new list lands.
     // Merge the standing dietary/time filter with the new headcount so re-scaling
     // doesn't drop the user's diet. Spreading `undefined` is a no-op, so with no
     // diet selected this stays exactly `{ servings }`.
