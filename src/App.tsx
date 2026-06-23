@@ -351,7 +351,7 @@ export default function App() {
           <section className="stack">
             {photo && <img className="preview" src={photo} alt="Your fridge" />}
             {thinPrompt && (
-              <div className="banner banner--notice" role="status">
+              <div className="banner banner--notice" role="status" aria-label="Photo quality">
                 <span className="banner__msg">
                   Only spotted a few things — retake with the door fully open?
                 </span>
