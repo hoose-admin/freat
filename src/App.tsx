@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import PhotoCapture from "./components/PhotoCapture";
 import IngredientList from "./components/IngredientList";
 import PreferencesControl from "./components/PreferencesControl";
+import PantryStaples from "./components/PantryStaples";
 import RecipeList from "./components/RecipeList";
 import ShoppingList from "./components/ShoppingList";
 import Loading from "./components/Loading";
 import { analyzeFridge, getRecipes, remixRecipe, getHealth, ApiRequestError } from "./lib/api";
+import { loadPantry, savePantry } from "./lib/pantry";
 import type { Ingredient, Recipe, RecipePreferences, HealthResponse } from "./lib/types";
 
 type Phase = "capture" | "ingredients" | "recipes";
@@ -33,6 +35,13 @@ export default function App() {
   // sessionStorage (survives a same-tab reload) and owned here so the control on
   // the ingredients screen and both fetch paths read the same value.
   const [preferences, setPreferences] = useState<RecipePreferences>(loadPreferences);
+  // Always-on-hand pantry staples (salt, oil, garlic…). Lazy-initialized from
+  // localStorage (survives reload — these are standing inventory, not per-photo
+  // data) and owned here so the editor on the ingredients screen and the recipe
+  // requests read the same list. Unioned into every recipe request below so the
+  // model stops flagging basics as missing. Persistence is client-only (no
+  // Gemini call, no /api route — ADR-001).
+  const [pantry, setPantry] = useState<string[]>(loadPantry);
   // Indices of the recipes the user has added to the shopping list. Lifted here
   // (the flow's single state owner) so RecipeList toggles and ShoppingList read
   // the same selection — mirrors how IngredientList lifts edits via onChange.
@@ -90,6 +99,12 @@ export default function App() {
     }
   }, [preferences]);
 
+  // Persist pantry staples on every add/remove. savePantry is try/catch-guarded
+  // (blocked/full storage no-ops), so this can't throw a console error.
+  useEffect(() => {
+    savePantry(pantry);
+  }, [pantry]);
+
   async function handlePhoto(dataUrl: string) {
     lastAction.current = () => handlePhoto(dataUrl);
     setPhoto(dataUrl);
@@ -117,7 +132,7 @@ export default function App() {
     setStatus("");
     setBusy(true);
     try {
-      const list = await getRecipes(ingredients.map((i) => i.name), prefs);
+      const list = await getRecipes(withStaples(ingredients.map((i) => i.name), pantry), prefs);
       setRecipes(list);
       // Default-select every recipe so the shopping list is useful with zero
       // extra taps; the per-card toggle narrows it.
@@ -173,7 +188,11 @@ export default function App() {
     setStatus("");
     setRemixing((prev) => new Set(prev).add(index));
     try {
-      const updated = await remixRecipe(recipes[index], tweak, ingredients.map((i) => i.name));
+      const updated = await remixRecipe(
+        recipes[index],
+        tweak,
+        withStaples(ingredients.map((i) => i.name), pantry),
+      );
       setRecipes((prev) => prev.map((r, i) => (i === index ? updated : r)));
       setStatus(`Remixed “${updated.title}”.`);
     } catch (e) {
@@ -263,6 +282,7 @@ export default function App() {
           <section className="stack">
             {photo && <img className="preview" src={photo} alt="Your fridge" />}
             <IngredientList ingredients={ingredients} onChange={setIngredients} />
+            <PantryStaples staples={pantry} onChange={setPantry} />
             <PreferencesControl value={preferences} onChange={setPreferences} />
             {busy ? (
               <Loading label="Cooking up meal ideas…" />
@@ -375,6 +395,17 @@ function cleanPreferences(p: RecipePreferences): RecipePreferences | undefined {
   if (p.dietary && p.dietary.length) out.dietary = p.dietary;
   if (p.maxTimeMinutes) out.maxTimeMinutes = p.maxTimeMinutes;
   return Object.keys(out).length ? out : undefined;
+}
+
+// Union the persisted pantry staples into the on-hand ingredient names,
+// case-insensitively deduped (photo-detected names come first, then any staple
+// not already present). An empty pantry returns the SAME array reference, so a
+// no-staples request stays byte-identical to before this feature.
+function withStaples(names: string[], staples: string[]): string[] {
+  if (!staples.length) return names;
+  const seen = new Set(names.map((n) => n.toLowerCase()));
+  const extra = staples.filter((s) => !seen.has(s.toLowerCase()));
+  return extra.length ? [...names, ...extra] : names;
 }
 
 function messageFor(e: unknown): string {
