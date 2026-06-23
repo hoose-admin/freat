@@ -635,6 +635,14 @@ body {
   font-size: 0.9rem;
   color: var(--muted);
 }
+/* Distinguish the copy outcome: green = copied, red = fallback failure. The
+   glyph in the message text carries the same signal for color-blind users. */
+.shopping__status--ok {
+  color: var(--brand);
+}
+.shopping__status--error {
+  color: var(--danger);
+}
 
 .visually-hidden {
   position: absolute;
