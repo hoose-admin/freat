@@ -14,12 +14,6 @@ dist/
 !.env.example
 bun.lock
 
-# build output + secrets
-dist/
-.env
-.env.*
-!.env.example
-bun.lock
 
 # weave dashboard cache (rebuilt on demand)
 .weave/cache/

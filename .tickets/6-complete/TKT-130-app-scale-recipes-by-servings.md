@@ -1,10 +1,11 @@
 ---
 id: TKT-130
 title: "Scale recipes by servings"
-status: "Todo"
+status: "Complete"
 priority: "Medium"
 assignee: "Claude-Agent"
 created: 2026-06-21
+completed: 2026-06-22
 domain: "app"
 tags:
   - feature
@@ -18,7 +19,10 @@ files_touched:
   - "src/App.tsx"
   - "src/styles.css"
 complexity: 2
-next_step_hint: Human review: chaos run complete — validated PASS (4 axes + arch coherence). Commit/merge chaos/TKT-130 to land.
+next_step_hint: Human review queue — whole-ticket validation passed; verify arch coherence vs ADR-001 then commit/merge chaos/TKT-130.
+chaos_branch: chaos/TKT-130
+merged: 2026-06-22
+merge_commit: 69715e76d28e
 ---
 
 ## Objective
@@ -83,42 +87,43 @@ missing-ingredient list actually buyable for the real headcount.
 **Chosen:** B — the `/api/recipes` route returns an array generated from `recipePrompt()` (`server/gemini.ts:108-126`); there is no per-recipe rescale endpoint and AC#4 bars adding one, so a per-card control cannot rescale a single card without a regenerate-all that would replace the others. A single screen-level stepper keeps `RecipeList` presentational (state + fetch stay in `App.tsx`, mirroring the established `getRecipes` single-path convention) and treats servings as the generation-time preference it actually is. Honors ADR-001 (one `/api/*` data path) and CLAUDE.md rule 2 (one data-fetching path).
 **Reversibility:** easy — the control is ~25 lines in `App.tsx`; a human who wants per-card UI would add a rescale route + a `RecipeList` prop, but the `RecipePreferences.servings` contract stays the same either way.
 
-
 ### Implementation Summary
 
-- `src/lib/types.ts`: added optional `servings?: number` to `RecipePreferences` (rides the existing `RecipesRequest.preferences` field — no fork of the request shape).
-- `server/gemini.ts`: `recipePrompt()` now appends a servings clause ONLY when `prefs.servings` is set, instructing Gemini to write `steps[]`/`missingIngredients[]` quantities for exactly N people (singular/plural aware). When unset the prompt string is byte-identical to before.
-- `src/App.tsx`: factored the recipe fetch into one `fetchRecipes(preferences?)` helper (the single `getRecipes` path); `handleGetRecipes()` calls it with NO preferences (first fetch unchanged), and a new `rescale(next)` clamps to 1..12, sets `servings`, and re-fetches `{ servings }`. Added a busy-guarded "Serves N" stepper (−/N/+) rendered on the recipes screen; `reset()` restores `servings` to the default (4).
-- `src/styles.css`: scoped `.servings` / `.stepper*` rules reusing existing tokens (`--surface-2`, `--border`, `--bg`, `--brand`); pill stepper with focus-visible ring and tabular-nums value.
+- `src/lib/types.ts`: added optional `servings?: number` to `RecipePreferences` (rides the existing `RecipesRequest.preferences` field — no fork of the request shape; `getRecipes(ingredients, preferences?)` in `src/lib/api.ts` already accepts `preferences?`, so no signature change).
+- `server/gemini.ts`: `recipePrompt()` now appends a `servings` clause ONLY when `prefs.servings` is set (`gemini.ts:111-114`), instructing Gemini to write `steps[]`/`missingIngredients[]` quantities for exactly N people (singular/plural aware: "person"/"people"). Falsy → `""` → the prompt string is byte-identical to before, in the same conditional style as the existing `dietary`/`time` clauses.
+- `src/App.tsx`: factored the recipe fetch into one `fetchRecipes(preferences?)` helper (the single `getRecipes` path); `handleGetRecipes()` calls it with NO preferences (first fetch byte-identical to before), and a new `rescale(next)` clamps to [1,12], records the choice, and re-fetches `{ servings }`. Added a busy-guarded "Serves N" stepper (−/N/+) rendered as one screen-level control on the recipes screen (gated on `recipes.length > 0`, like ShoppingList); both buttons `disabled={busy || at-bound}`; `reset()` restores `servings` to the default (4). Retry re-runs the exact failed action (first fetch or rescale) via `lastAction`.
+- `src/styles.css`: scoped `.servings` / `.stepper*` rules reusing existing tokens (`--surface-2`, `--border`, `--bg`, `--brand`); pill stepper with a focus-visible ring and tabular-nums value.
 
 **Deviations from plan:**
 - Stepper placement: rendered as ONE screen-level control on the recipes screen rather than per-card in `RecipeList.tsx:18-26` (the ticket's literal hint). Rationale in the `### Autonomous Decision` block — `/api/recipes` regenerates the whole list and AC#4 forbids a single-recipe route, so a global control is the only coherent mapping. `RecipeList` stays purely presentational.
 
 **Implementation notes:**
-- `bun run typecheck` -> exit 0; `bun run build` -> exit 0 (PWA precache regenerated, 7 entries).
-- Hard rules honored: no key/`VITE_`/`fetch(` added in `src/` (only the existing `GEMINI_KEY_MISSING` code check and the one `api.ts` fetch remain); AI stays lazy — the stepper fires `getRecipes` only on a user click, never on load.
+- `bun run typecheck` → exit 0; `bun run build` → exit 0 (PWA precache regenerated, 10 entries).
+- Hard rules honored: no `VITE_`/`GEMINI_API_KEY`/new `fetch(` in `src/` (only the pre-existing `api.ts` fetch remains); AI stays lazy — the stepper fires `getRecipes` only on a user click, never on load/mount (no `useEffect`); `server/handlers.ts` untouched (no new route).
 
 
 ### Test Results
 
-**Verifier:** fresh subagent (`general-purpose`)
-**Run:** 2026-06-21
+**Verifier:** fresh subagent (`general-purpose`, cold reader)
+**Run:** 2026-06-22
 **Overall:** PASS
 
 | AC | Pass | Evidence |
 |---|---|---|
-| `RecipePreferences` gains `servings?: number`; no fork; `getRecipes` unchanged | ✓ | `src/lib/types.ts:25` `servings?: number;` inside the existing `RecipePreferences`; `src/lib/api.ts` NOT in the diff — `getRecipes(ingredients, preferences?)` already accepted `preferences?`, no signature change. |
-| `recipePrompt()` adds servings clause only when set; byte-identical when unset | ✓ | `server/gemini.ts:112-114` `const servings = prefs?.servings ? "\nScale every recipe…" : ""` appended as `${servings}` at the prompt tail; falsy → `""` → prompt byte-identical to before. Singular/plural ("person"/"people") handled. |
-| "Serves N" stepper (−/N/+, ≥1) re-fetches via single `getRecipes`; busy-disabled | ✓ | `src/App.tsx` recipes phase renders the `Serves` group; `rescale()` clamps via `Math.max(MIN_SERVINGS=1, …)` then `fetchRecipes({ servings })` → the single `getRecipes`; both buttons `disabled={busy || …}`. |
-| First fetch sends NO servings; `handlers.ts` gains NO new route | ✓ | `handleGetRecipes() → fetchRecipes()` (no args) → `getRecipes(names, undefined)`; `server/handlers.ts` absent from `git diff`; `/api/recipes` reused. Stepper fires only on `onClick`, no `useEffect`/mount trigger. |
-| No-key 503 surfaces friendly msg; `typecheck` exit 0; zero console errors on load | ✓ | `fetchRecipes` catch → `messageFor(e)` maps `GEMINI_KEY_MISSING` → friendly 503 message (same path as first fetch, no uncaught error); `bun run typecheck` → `tsc --noEmit` exit 0. |
+| AC1 — `RecipePreferences` gains `servings?`; rides existing `preferences`; `getRecipes` signature unchanged; api.ts not in diff | ✓ | `types.ts:24-26` adds `servings?: number` inside existing `RecipePreferences`; `git diff --stat` lists only the 4 files (api.ts absent); `api.ts:55-60` `getRecipes(ingredients, preferences?)` unchanged. |
+| AC2 — `recipePrompt()` appends servings clause only when set; `""` when unset (byte-identical) | ✓ | `gemini.ts:112-114` ternary yields `""` when servings falsy; line 117 interpolates `...${time}${servings}` → prompt byte-identical when unset. |
+| AC3 — "Serves N" stepper (−/N/+, ≥1) re-requests via `getRecipes` w/ `preferences.servings`; both buttons busy-disabled | ✓ | `App.tsx:191-218` `role=group`; `−` `disabled={busy||servings<=1}`, `+` `disabled={busy||servings>=12}`; `rescale()` clamps [1,12] → `fetchRecipes({servings})` → `getRecipes(...,preferences)`. |
+| AC4 — first fetch sends NO servings; no new route (handlers.ts not in diff); fires only on click (no useEffect trigger) | ✓ | `handleGetRecipes → fetchRecipes()` (no args) → `preferences=undefined`; handlers.ts absent from diff; `rescale` fires only from button `onClick`; only `useEffect` deps `[phase]`, focus-only. |
+| AC5 — no-key stepper re-fetch → 503 friendly msg via existing catch→`messageFor`; typecheck exit 0 | ✓ | `fetchRecipes` catch → `setError(messageFor(e))`; `messageFor` maps `GEMINI_KEY_MISSING` → friendly msg (`App.tsx:258-265`); `tsc --noEmit` EXIT=0. |
+| HARD-RULES — no `VITE_`/`GEMINI_API_KEY`/new `fetch(` in src/ | ✓ | `grep VITE_` → none; `grep GEMINI_API_KEY` → none; `fetch(` only pre-existing `api.ts:3` (comment), `:27`. |
 
 **Commands run:**
-- `git -C <worktree> diff`
-- `grep -rn 'VITE_' / 'GEMINI_API_KEY' / 'fetch(' / 'GEMINI_KEY_MISSING' src/`
+- `git --no-pager diff --stat` / `git --no-pager diff`
+- `grep -rn 'VITE_' / 'GEMINI_API_KEY' / 'fetch(' src/`
+- `grep -n 'useEffect' src/App.tsx`
 - `bun run typecheck`
 
-**Notes:** Hard rules clean — no `VITE_` key, no `GEMINI_API_KEY` in `src/`; the only `fetch(` in `src/` is the pre-existing `api.ts:27`; `GEMINI_KEY_MISSING` is only the pre-existing error-CODE check at `App.tsx:165`. AI-lazy confirmed (no mount trigger; `getRecipes` fires only on button click). `handlers.ts` untouched.
+**Notes:** All 5 ACs + hard rules verified against actual code; touched files exactly match ticket scope (`server/gemini.ts`, `src/App.tsx`, `src/lib/types.ts`, `src/styles.css`); `api.ts` and `handlers.ts` correctly absent from the diff. `rescale` early-returns at a bound to avoid pointless re-fetches; the stepper renders only when `recipes.length>0` and fires solely on click.
 
 ### Smoke Check
 
@@ -128,23 +133,24 @@ missing-ingredient list actually buyable for the real headcount.
 |---|---|---|---|---|---|
 | / | — | — | — | — | skipped: driver absent |
 
-A skip is not a pass and never fails the ticket (per the test-ticket gate). `bun run build` exit 0 and the static trace (stepper triggers no network on render/mount; the only Gemini call is the user-clicked re-fetch, whose error path is caught) cover the load-time console-clean requirement in lieu of the runtime smoke.
+A skip is not a pass and never fails the ticket (per the test-ticket gate). `bun run build` exit 0 and the static trace (the stepper triggers no network on render/mount — `getRecipes` fires only on a user click, whose error path is caught) cover the load-time console-clean requirement in lieu of the runtime smoke.
 
 
 ### Validation Review
 
-**Reviewer:** fresh subagent (`general-purpose`, distinct from test subagent)
-**Run:** 2026-06-21
+**Reviewer:** fresh subagent (`general-purpose`, distinct from the test subagent)
+**Run:** 2026-06-22
 **Overall:** PASS
 
 | Axis | Pass | Evidence |
 |---|---|---|
-| Objective fidelity | ✓ | `types.ts:25` adds `servings?` to the existing `RecipePreferences` (no new shape); `gemini.ts:112-114` appends the servings clause only when set (byte-identical when unset); `App.tsx` factors one `fetchRecipes(preferences?)` through `getRecipes`, `handleGetRecipes()` passes no servings (first fetch unchanged), `rescale()` clamps [1,12] and re-fetches `{ servings }`. Documented Autonomous Decision for the screen-level placement is correct given whole-list `/api/recipes` regeneration. No drift. |
-| Context constraints | ✓ | Rule 1: no `VITE_`/`GEMINI_API_KEY` in `src/` (grep clean); only `GEMINI_KEY_MISSING` error-code at `App.tsx:165`. Rule 2: sole `fetch(` is pre-existing `api.ts:27`; `servings` rides `preferences`→`/api/recipes`, no signature change. Rule 3: no `useEffect`; calls fire only on button `onClick`. Rule 4: no manifest/SW/vite edits. typecheck exit 0. **Arch coherence:** honors ADR-001 — shared type, single client module, one `/api/recipes` contract, no route added; additively extends the SAME contract as TKT-106 (distinct `servings` field, distinct screen) — no fork. |
-| Sprawl | ✓ | `git status --short` = exactly `M server/gemini.ts`, `M src/App.tsx`, `M src/lib/types.ts`, `M src/styles.css` (+ `?? node_modules`, ignored) — precisely `files_touched`. |
-| Follow-up surfacing | ✓ | No in-scope gap unfixed. One deferred follow-up (servings persistence) filed; upper cap MAX_SERVINGS=12 is a reasonable un-specified guard, not a defect. |
+| Objective fidelity | ✓ | `types.ts:26` adds `servings?` to the existing `RecipePreferences`; `api.ts:55-60` forwards `preferences`; `handlers.ts:68` passes `body.preferences` to `suggestRecipes`; `gemini.ts:112-117` injects the rescale instruction into the SAME prompt that drives `steps[]`/`missingIngredients[]`; `App.tsx rescale()` clamps [1,12], stores the choice, and re-requests the whole list via `fetchRecipes({servings})`. No drift. |
+| Context constraints | ✓ | Rule 1: no `VITE_`/`GEMINI_API_KEY` in src/ (only the `e.code === "GEMINI_KEY_MISSING"` string at `App.tsx:260`). Rule 2: no `fetch(` in components/App; rescale routes through `api.ts getRecipes`; `handlers.ts` UNCHANGED (3 original routes). Rule 3: the lone `useEffect` (`App.tsx:48-54`) is focus-only, deps `[phase]`; Gemini fires only from `handleGetRecipes`/`rescale`. Rule 4: no manifest/SW/vite changes. `tsc --noEmit` clean. |
+| Sprawl | ✓ | `git diff --stat` = exactly the 4 declared `files_touched` (`server/gemini.ts`, `src/App.tsx`, `src/lib/types.ts`, `src/styles.css`). Zero out-of-scope files; styles.css adds only a self-contained `.servings`/`.stepper` block. |
+| Follow-up surfacing | ✓ | One known deferral (servings not persisted across reload) is explicit/intentional (`App.tsx` session-only comment; `reset()` restores default). Stepper is keyboard/SR-accessible (role=group, per-button aria-labels, aria-live value, :focus-visible), busy/bound-disabled, no-ops at a bound. |
 
-**Suggested new tickets:** 1 surfaced (filed, defer).
-- **TKT-143** (`0-backlog`, defer) — Persist chosen servings across session/reload (currently session-only, resets to 4 on `reset()`; explicitly out-of-scope here).
+**Architecture coherence (chaos-required):** PASS — fully coherent with ADR-001 + CLAUDE.md. Single shared types module (`servings` added to existing `RecipePreferences`, no parallel type); single `api.ts` client path (rescale → `getRecipes` → `/api/recipes`, no component fetch, no second helper); ONE `/api/recipes` contract with NO new route (`handlers.ts` byte-unchanged; the forbidden single-recipe-rescale route was not added); additive extension of the SAME pattern (the `servings` prompt fragment uses the identical `prefs?.X ? `…` : ""` shape as `dietary`/`time` and concatenates the same way), NOT a fork of TKT-106; AI stays lazy.
 
-**Reviewer notes (verbatim):** "Overall PASS — all four axes pass. The change is fully coherent with ADR-001 and CLAUDE.md's four hard rules. It additively extends the single RecipePreferences contract (new servings? field), reuses the one getRecipes -> /api/recipes data path, adds no server route, and does NOT fork TKT-106's pattern. The documented Autonomous Decision to place a single screen-level stepper instead of the per-card hint is the correct mapping given the whole-list /api/recipes regeneration and AC#4's prohibition on a single-recipe route."
+**Suggested new tickets:** 2 surfaced.
+- Persist chosen servings across session/reload → **already filed as TKT-143** (`0-backlog`); not re-filed.
+- Stepper value should reflect the displayed recipes on a failed re-fetch → **filed as TKT-159** (`0-backlog`, defer, Low).

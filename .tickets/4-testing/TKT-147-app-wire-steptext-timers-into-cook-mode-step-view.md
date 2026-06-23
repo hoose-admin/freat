@@ -1,7 +1,7 @@
 ---
 id: TKT-147
 title: "Wire StepText step-timers into the Cook Mode step view"
-status: "Todo"
+status: "Testing"
 priority: "Medium"
 assignee: "Claude-Agent"
 created: 2026-06-21
@@ -12,8 +12,9 @@ tags:
 depends_on: [TKT-126, TKT-135]
 blocks: []
 related: [TKT-135]
-files_touched: []
-next_step_hint: Merge TKT-126 + TKT-135 to main first (CookMode.tsx + StepText.tsx absent on this branch), then re-dispatch TKT-147 for the StepText wire-up.
+files_touched:
+  - src/components/CookMode.tsx
+next_step_hint: Verify Cook Mode renders steps via <StepText> with working timer chips; cite CookMode.tsx:170-172 and a green headless / smoke.
 complexity: 1
 chaos_unstick_count: 1
 ---
@@ -50,3 +51,25 @@ named.
 **What was discovered:** Cook Mode (`CookMode.tsx`, from unmerged TKT-126) is absent on the TKT-135 branch, so the timer feature only reaches the accordion until Cook Mode imports `StepText` at merge.
 **Ordering decision:** defer-to-backlog
 **Rationale:** It can only be done once both TKT-126 and TKT-135 land on `main`; it is a small, separable follow-up, not a blocker for TKT-135's own surface.
+
+### Pass-2 review
+
+**Run:** 2026-06-22
+**Reader:** cold (no pass-1 context carried)
+
+- **AC tightening:** none — the three AC bullets are already independently verifiable (a `file:line` render check, a behavioral timer/haptic + layout check, and `bun run typecheck` + headless smoke).
+- **Blockers:** ok — `depends_on: [TKT-126, TKT-135]` both satisfied: `src/components/CookMode.tsx` and `src/components/StepText.tsx` both present on this branch (TKT-126 landed to main; StepText present).
+- **Context drift:** ok — verified `CookMode.tsx:170` renders `{steps[step]}` inside `<p className="cook__step-text">`; `StepText.tsx` exports a default `StepText({ text })`; `RecipeList.tsx:84` already consumes `<StepText text={step} />`.
+
+**Verdict:** build-ready
+
+### Implementation Summary
+
+- Added `import StepText from "./StepText";` to `src/components/CookMode.tsx` (the existing default export already used by `RecipeList.tsx:84`).
+- Replaced the raw `{steps[step]}` render at `CookMode.tsx:170` with `<StepText text={steps[step]} />`, kept inside the existing `<p className="cook__step-text">` so the large-type Cook Mode layout is unchanged. The single-step view now renders the same inline countdown chips + haptics as the recipe accordion.
+
+**Deviations from plan:**
+- None — implementation matched the plan (the one-line reconciliation the TKT-135 Autonomous Decision named).
+
+**Implementation notes:**
+- No contract change: `StepText` is pure client-side (regex over `Recipe.steps` strings), so ADR-001 / CLAUDE.md hard rules (no Gemini on load, key never in client, manifest/SW intact) are untouched. `bun run typecheck` passes.
