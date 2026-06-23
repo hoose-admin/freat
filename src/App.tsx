@@ -8,6 +8,7 @@ import ShoppingList from "./components/ShoppingList";
 import Loading from "./components/Loading";
 import { analyzeFridge, getRecipes, remixRecipe, getHealth, ApiRequestError } from "./lib/api";
 import { loadPantry, savePantry } from "./lib/pantry";
+import { recipeKey } from "./lib/recipeKey";
 import { consumeSharedImage } from "./lib/shareTarget";
 import type { Ingredient, Recipe, RecipePreferences, HealthResponse } from "./lib/types";
 
@@ -43,10 +44,12 @@ export default function App() {
   // model stops flagging basics as missing. Persistence is client-only (no
   // Gemini call, no /api route — ADR-001).
   const [pantry, setPantry] = useState<string[]>(loadPantry);
-  // Indices of the recipes the user has added to the shopping list. Lifted here
-  // (the flow's single state owner) so RecipeList toggles and ShoppingList read
-  // the same selection — mirrors how IngredientList lifts edits via onChange.
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  // Stable identities (recipeKey — normalized title) of the recipes the user has
+  // added to the shopping list. Keyed on identity rather than the array index so
+  // the selection can't mis-map if recipe ordering is ever introduced (TKT-157).
+  // Lifted here (the flow's single state owner) so RecipeList toggles and
+  // ShoppingList read the same selection — mirrors how IngredientList lifts edits.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   // Indices currently being remixed. Per-card (a Set, not the global `busy`) so a
   // single dish can regenerate while its siblings stay fully interactive.
   const [remixing, setRemixing] = useState<Set<number>>(new Set());
@@ -168,8 +171,8 @@ export default function App() {
       // resurface if they later return here via "Edit ingredients".
       setThinPrompt(false);
       // Default-select every recipe so the shopping list is useful with zero
-      // extra taps; the per-card toggle narrows it.
-      setSelected(new Set(list.map((_, i) => i)));
+      // extra taps; the per-card toggle narrows it. Keyed by recipe identity.
+      setSelected(new Set(list.map(recipeKey)));
       setStatus(`${list.length} meal idea${list.length === 1 ? "" : "s"} ready.`);
       setPhase("recipes");
     } catch (e) {
@@ -201,32 +204,48 @@ export default function App() {
     fetchRecipes(prefs);
   }
 
-  function toggleSelect(index: number) {
+  function toggleSelect(key: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }
 
   // Regenerate ONE dish in place. Per-card: only `index` is marked busy (its
   // chips/input disable + spinner), so sibling cards stay interactive. The
-  // success path swaps just that recipe; selection (keyed by index) is preserved.
-  // Errors ride the same shared banner/Retry path as analyze/recipes.
+  // success path swaps just that recipe; the shopping-list selection (keyed by
+  // recipe identity) is carried across the swap so a remix doesn't silently drop
+  // the card from the list. Errors ride the shared banner/Retry path.
   async function handleRemix(index: number, tweak: string) {
     if (remixing.has(index)) return;
+    const previous = recipes[index];
     lastAction.current = () => handleRemix(index, tweak);
     setError(null);
     setStatus("");
     setRemixing((prev) => new Set(prev).add(index));
     try {
       const updated = await remixRecipe(
-        recipes[index],
+        previous,
         tweak,
         withStaples(ingredients.map((i) => i.name), pantry),
       );
       setRecipes((prev) => prev.map((r, i) => (i === index ? updated : r)));
+      // A remix usually rewrites the title (= the identity key), so migrate the
+      // selection key if this card was selected — preserving the prior
+      // "remix keeps selection" behavior now that selection is identity-keyed.
+      const before = recipeKey(previous);
+      const after = recipeKey(updated);
+      if (before !== after) {
+        setSelected((prev) => {
+          if (!prev.has(before)) return prev;
+          const next = new Set(prev);
+          next.delete(before);
+          next.add(after);
+          return next;
+        });
+      }
       setStatus(`Remixed “${updated.title}”.`);
     } catch (e) {
       setError(messageFor(e));
@@ -402,7 +421,7 @@ export default function App() {
               onEditIngredients={() => setPhase("ingredients")}
             />
             {recipes.length > 0 && (
-              <ShoppingList recipes={recipes.filter((_, i) => selected.has(i))} />
+              <ShoppingList recipes={recipes.filter((r) => selected.has(recipeKey(r)))} />
             )}
             <div className="actions">
               <button className="btn btn--ghost" onClick={reset} disabled={busy}>
