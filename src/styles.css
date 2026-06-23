@@ -944,6 +944,10 @@ body {
   .btn:active {
     transform: none !important;
   }
+  /* .step-timer has the same press-nudge as .btn — neutralize it for parity. */
+  .step-timer:active {
+    transform: none !important;
+  }
   /* Exception: an indeterminate spinner frozen mid-turn reads as "broken", not
      "still". Keep it turning continuously, just slower. (Folded in from the
      former standalone .spinner block.) */
