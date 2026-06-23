@@ -39,7 +39,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 const COPY_OK = "Copied to clipboard ✓";
-const COPY_FAIL = "Couldn't copy — select the list and copy it manually.";
+const COPY_FAIL = "⚠ Couldn't copy — select the list and copy it manually.";
 
 export default function ShoppingList({ recipes }: Props) {
   const items = aggregateMissing(recipes);
@@ -50,6 +50,15 @@ export default function ShoppingList({ recipes }: Props) {
   useEffect(() => setStatus(""), [recipes]);
 
   const text = items.join("\n");
+
+  // Color the live status by outcome — green for a real copy, red for the
+  // fallback failure — so the rare "couldn't copy" never reads as success.
+  const statusModifier =
+    status === COPY_OK
+      ? " shopping__status--ok"
+      : status === COPY_FAIL
+        ? " shopping__status--error"
+        : "";
 
   async function handleCopy() {
     setStatus((await copyToClipboard(text)) ? COPY_OK : COPY_FAIL);
@@ -99,7 +108,7 @@ export default function ShoppingList({ recipes }: Props) {
         </>
       )}
 
-      <p className="shopping__status" role="status" aria-live="polite">
+      <p className={`shopping__status${statusModifier}`} role="status" aria-live="polite">
         {status}
       </p>
     </section>
