@@ -62,6 +62,11 @@ export default function App() {
   // always-present live region (below) reads this; a count message is the
   // payload. Kept separate from `error` (role="alert") and `busy` (aria-busy).
   const [status, setStatus] = useState("");
+  // Soft retake nudge when analyze comes back suspiciously thin (1–2 items, or
+  // many low-confidence ones) — a poor photo, not a product failure. Set from
+  // isThinResult(found) post-analyze; cleared by reset() (retake) and by a
+  // successful recipe fetch (so it never lingers if the user proceeds anyway).
+  const [thinPrompt, setThinPrompt] = useState(false);
   // The last AI action attempted, captured so the error banner's Retry can
   // re-run exactly what failed (analyze with the same photo, or recipes with
   // the same ingredients) without the user re-doing the input.
@@ -132,6 +137,7 @@ export default function App() {
     try {
       const found = await analyzeFridge(dataUrl);
       setIngredients(found);
+      setThinPrompt(isThinResult(found));
       setStatus(`Found ${found.length} ingredient${found.length === 1 ? "" : "s"}.`);
       setPhase("ingredients");
     } catch (e) {
@@ -152,6 +158,9 @@ export default function App() {
     try {
       const list = await getRecipes(withStaples(ingredients.map((i) => i.name), pantry), prefs);
       setRecipes(list);
+      // The user chose to proceed — retire the thin-result nudge so it doesn't
+      // resurface if they later return here via "Edit ingredients".
+      setThinPrompt(false);
       // Default-select every recipe so the shopping list is useful with zero
       // extra taps; the per-card toggle narrows it.
       setSelected(new Set(list.map((_, i) => i)));
@@ -234,6 +243,7 @@ export default function App() {
     setServings(DEFAULT_SERVINGS);
     setError(null);
     setStatus("");
+    setThinPrompt(false);
     lastAction.current = null;
     // `preferences` is intentionally left intact — dietary/time are session
     // settings, not per-photo data, so "Start over" keeps the user's diet.
@@ -302,6 +312,24 @@ export default function App() {
         {phase === "ingredients" && (
           <section className="stack">
             {photo && <img className="preview" src={photo} alt="Your fridge" />}
+            {thinPrompt && (
+              <div className="banner banner--notice" role="status">
+                <span className="banner__msg">
+                  Only spotted a few things — retake with the door fully open?
+                </span>
+                <div className="banner__actions">
+                  <button className="btn btn--primary btn--sm" onClick={reset}>
+                    Retake
+                  </button>
+                  <button
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => setThinPrompt(false)}
+                  >
+                    Keep going
+                  </button>
+                </div>
+              </div>
+            )}
             <IngredientList ingredients={ingredients} onChange={setIngredients} />
             <PantryStaples staples={pantry} onChange={setPantry} />
             <PreferencesControl value={preferences} onChange={setPreferences} />
@@ -427,6 +455,23 @@ function withStaples(names: string[], staples: string[]): string[] {
   const seen = new Set(names.map((n) => n.toLowerCase()));
   const extra = staples.filter((s) => !seen.has(s.toLowerCase()));
   return extra.length ? [...names, ...extra] : names;
+}
+
+// A "thin" analyze result is weak-but-nonempty — the case where dropping the
+// user straight into a near-empty ingredient list reads as a product failure
+// when the real culprit was a blurry/closed/dark photo. Fires when the list is
+// very short (1–2 items) OR — only when EVERY item carries a numeric confidence
+// — the mean confidence is below 0.5. The all-numeric guard keeps good photos
+// (where confidence is often sparse/absent — gemini.ts coerces non-numbers to
+// undefined) from tripping the nudge. An empty (0-item) result is deliberately
+// NOT thin: that is the empty-state's job (TKT-103), keeping the two disjoint.
+function isThinResult(items: Ingredient[]): boolean {
+  if (items.length === 0) return false;
+  if (items.length <= 2) return true;
+  const confidences = items.map((i) => i.confidence);
+  if (!confidences.every((c): c is number => typeof c === "number")) return false;
+  const mean = confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
+  return mean < 0.5;
 }
 
 function messageFor(e: unknown): string {
