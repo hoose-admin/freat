@@ -241,6 +241,9 @@ export default function App() {
 
   return (
     <div className="app">
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header className="app__header">
         <h1 className="app__title">
           <span aria-hidden="true">🧊</span> Freat
@@ -257,7 +260,7 @@ export default function App() {
         )}
       </header>
 
-      <main className="app__main" aria-busy={busy} ref={mainRef}>
+      <main className="app__main" id="main-content" tabIndex={-1} aria-busy={busy} ref={mainRef}>
         {health && !health.geminiConfigured && !demoDismissed && (
           <div className="banner banner--info" role="status">
             <span className="banner__msg">

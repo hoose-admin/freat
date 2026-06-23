@@ -41,6 +41,38 @@ body {
   min-height: 100dvh;
 }
 
+/* Skip-to-main-content link (a11y): the first focusable element in the app, so
+   keyboard/SR users can jump past the header straight to <main>. A
+   :focus-revealed variant of the .visually-hidden technique — it stays in the
+   a11y tree and keyboard-focusable while translated off-screen, then slides in
+   on focus. The transition is auto-collapsed by the global prefers-reduced-motion
+   rule below. Focus outline matches the repo's .input:focus-visible convention. */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--brand);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(calc(-100% - 16px));
+  transition: transform 0.15s ease;
+}
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+/* <main> only ever receives focus programmatically (skip-link target + the SPA
+   route-change focus). Suppress its ring — a full-width outline reads as breakage. */
+.app__main:focus {
+  outline: none;
+}
+
 .app__header {
   text-align: center;
   padding: 20px 0 8px;
