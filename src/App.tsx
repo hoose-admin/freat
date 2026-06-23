@@ -56,6 +56,11 @@ export default function App() {
   // /api/health (NOT a Gemini call — ADR-001), so the header can show whether
   // the key is configured before the user wastes a photo on a dead analyze.
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  // Whether the on-mount /api/health probe is still in flight (TKT-144). Lets the
+  // pill show a neutral "checking…" state while probing instead of rendering
+  // nothing, and distinguishes "still probing" from "probe settled but failed"
+  // (both leave `health` null) so a failed probe shows a fallback, not "checking…".
+  const [probing, setProbing] = useState(true);
   // The demo-mode banner is dismissible for the session.
   const [demoDismissed, setDemoDismissed] = useState(false);
   // Polite SR announcement for async completion (analyze / recipes). One
@@ -92,7 +97,8 @@ export default function App() {
   useEffect(() => {
     getHealth()
       .then(setHealth)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setProbing(false));
   }, []);
 
   // Inbound Web Share Target (TKT-134): when launched from the OS share sheet, the
@@ -259,15 +265,20 @@ export default function App() {
           <span aria-hidden="true">🧊</span> Freat
         </h1>
         <p className="app__tagline">Snap your fridge, get dinner ideas.</p>
-        {health && (
-          <p
-            className={`ai-pill ai-pill--${health.geminiConfigured ? "ready" : "off"}`}
-            role="status"
-          >
-            <span className="ai-pill__dot" aria-hidden="true" />
-            {health.geminiConfigured ? "AI ready" : "AI not configured"}
-          </p>
-        )}
+        {/* Passive AI-readiness chrome (TKT-133/TKT-144). NOT a live region — the
+            demo banner below keeps the single on-mount role="status" so a missing
+            key announces once, not twice. Always rendered: a neutral "Checking AI…"
+            shows while the probe is in flight (and an "unknown" fallback if it
+            fails) so the header never silently shows nothing. */}
+        {(() => {
+          const pill = pillState(probing, health);
+          return (
+            <p className={`ai-pill ai-pill--${pill.modifier}`}>
+              <span className="ai-pill__dot" aria-hidden="true" />
+              {pill.label}
+            </p>
+          );
+        })()}
       </header>
 
       <main className="app__main" id="main-content" tabIndex={-1} aria-busy={busy} ref={mainRef}>
@@ -472,6 +483,23 @@ function isThinResult(items: Ingredient[]): boolean {
   if (!confidences.every((c): c is number => typeof c === "number")) return false;
   const mean = confidences.reduce((sum, c) => sum + c, 0) / confidences.length;
   return mean < 0.5;
+}
+
+// Maps the health-probe state to the pill's CSS modifier + label (TKT-144). The
+// pill renders in all four states so the header always shows a readiness signal:
+// while probing → neutral "Checking AI…"; settled → "AI ready"/"AI not configured";
+// settled with no health (probe errored — the .catch left it null) → a neutral
+// "AI status unknown". Only "ready" has distinct (green) CSS; the rest fall back
+// to the neutral base .ai-pill, so no new style rule is needed.
+function pillState(
+  probing: boolean,
+  health: HealthResponse | null,
+): { modifier: string; label: string } {
+  if (probing) return { modifier: "checking", label: "Checking AI…" };
+  if (!health) return { modifier: "unknown", label: "AI status unknown" };
+  return health.geminiConfigured
+    ? { modifier: "ready", label: "AI ready" }
+    : { modifier: "off", label: "AI not configured" };
 }
 
 function messageFor(e: unknown): string {
