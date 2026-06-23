@@ -296,7 +296,7 @@ export default function App() {
           (busy ? (
             <Loading label="Looking at your fridge…" />
           ) : (
-            <PhotoCapture onPhoto={handlePhoto} busy={busy} />
+            <PhotoCapture onPhoto={handlePhoto} busy={busy} onStatus={setStatus} />
           ))}
 
         {phase === "ingredients" && (
