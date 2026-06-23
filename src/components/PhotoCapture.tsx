@@ -245,11 +245,21 @@ export default function PhotoCapture({ onPhoto, onError, busy, onStatus }: Props
             {reading ? "Reading photo…" : cameraSupported ? "Choose a photo" : "Take / choose a photo"}
           </button>
 
-          {hint && (
-            <p className="capture__hint" role="status">
-              {hint}
-            </p>
-          )}
+          {/* Always-mounted polite live region for the camera-failure / fallback
+              notice, mirroring App's persistent role="status" region (App.tsx).
+              The element exists in the DOM *before* `hint` is set, so SR/browser
+              pairs that ignore a polite region created at announce-time still hear
+              the message (TKT-161). When empty it's `visually-hidden` (no empty box
+              / layout shift for sighted users); when set it shows the visible
+              `.capture__hint` notice. Toggling the class keeps it the SAME node, so
+              it stays the one announcer — no second competing live region. */}
+          <p
+            className={hint ? "capture__hint" : "visually-hidden"}
+            role="status"
+            aria-live="polite"
+          >
+            {hint}
+          </p>
         </>
       )}
 
