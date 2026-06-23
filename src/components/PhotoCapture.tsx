@@ -216,6 +216,21 @@ export default function PhotoCapture({ onPhoto, onError, busy, onStatus }: Props
               {ready ? "Capture photo" : "Preparing…"}
             </button>
           </div>
+
+          {/* SR-only readiness announcement (TKT-164). The Capture button's
+              "Preparing…"→"Capture photo" relabel is silent to assistive tech: a
+              `disabled` button is removed from the a11y tree, so an SR user
+              sitting on it hears nothing when the first <video> frame makes it
+              actionable. This persistent polite region — mounted for the whole
+              live sub-view (empty until `ready`), like the idle hint (TKT-161) —
+              voices the transition so SR/browser pairs that ignore a region
+              created at announce-time still hear it. Visually hidden: the button
+              label is the sighted cue, so sighted users see no change. Reuses the
+              established role="status" aria-live pattern — not a second region
+              competing with the idle hint, which is in the disjoint idle branch. */}
+          <p className="visually-hidden" role="status" aria-live="polite">
+            {ready ? "Camera ready" : ""}
+          </p>
         </>
       ) : (
         <>
