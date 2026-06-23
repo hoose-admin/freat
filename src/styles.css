@@ -286,11 +286,26 @@ body {
   padding: 1px 6px;
   font-size: 0.9em;
 }
+.banner--notice {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 .banner__msg {
   flex: 1;
   min-width: 12ch;
 }
 .banner__dismiss {
+  flex-shrink: 0;
+}
+.banner__actions {
+  display: flex;
+  gap: 8px;
   flex-shrink: 0;
 }
 
