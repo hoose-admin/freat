@@ -31,6 +31,13 @@ export default defineConfig({
         "apple-touch-icon.png",
       ],
       workbox: {
+        // Layer the inbound-share POST handler (public/share-target-sw.js) onto the
+        // generated SW. Workbox injects importScripts(...) at the TOP of sw.js — before
+        // precacheAndRoute / the NavigationRoute / the /api route — and the Workbox
+        // Router only matches GET, so the custom POST /share-target handler can't
+        // collide with any generated route. Purely additive: the precache, app-shell
+        // fallback, and /api NetworkOnly rule stay byte-for-byte intact (TKT-134).
+        importScripts: ["share-target-sw.js"],
         // App-shell fallback: any offline navigation is served the precached
         // index.html (this is also vite-plugin-pwa's default — set explicitly so a
         // plugin-default change can't silently break offline launch).
@@ -53,6 +60,19 @@ export default defineConfig({
         background_color: "#0b1120",
         display: "standalone",
         start_url: "/",
+        // Inbound Web Share Target (TKT-134): register Freat in the OS share sheet
+        // for images. The OS POSTs multipart/form-data to this action; the field
+        // `image` is received by public/share-target-sw.js (loaded via
+        // workbox.importScripts above). action/cache-key/param are the contract
+        // shared with that SW and src/lib/shareTarget.ts.
+        share_target: {
+          action: "/share-target",
+          method: "POST",
+          enctype: "multipart/form-data",
+          params: {
+            files: [{ name: "image", accept: ["image/*"] }],
+          },
+        },
         icons: [
           // Crisp scalable "any" icon (un-masked contexts).
           {

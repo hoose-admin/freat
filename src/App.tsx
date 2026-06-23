@@ -8,6 +8,7 @@ import ShoppingList from "./components/ShoppingList";
 import Loading from "./components/Loading";
 import { analyzeFridge, getRecipes, remixRecipe, getHealth, ApiRequestError } from "./lib/api";
 import { loadPantry, savePantry } from "./lib/pantry";
+import { consumeSharedImage } from "./lib/shareTarget";
 import type { Ingredient, Recipe, RecipePreferences, HealthResponse } from "./lib/types";
 
 type Phase = "capture" | "ingredients" | "recipes";
@@ -87,6 +88,23 @@ export default function App() {
     getHealth()
       .then(setHealth)
       .catch(() => {});
+  }, []);
+
+  // Inbound Web Share Target (TKT-134): when launched from the OS share sheet, the
+  // service worker (public/share-target-sw.js) has already stashed the shared image
+  // in Cache Storage and redirected to /?share-target. Consume it once on mount and
+  // run the existing analyze flow — skipping in-app capture. With NO ?share-target
+  // param this is a pure no-op (no Cache read, no Gemini call), so a plain "/" load
+  // stays side-effect-free and the smoke gate sees zero console errors (rule 3).
+  useEffect(() => {
+    consumeSharedImage()
+      .then((dataUrl) => {
+        if (dataUrl) handlePhoto(dataUrl);
+      })
+      .catch(() => {});
+    // Mount-only: a share launch is consumed exactly once. handlePhoto is stable for
+    // this purpose (it only reads refs/setters); intentionally no deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Persist preferences for the session. try/catch so blocked storage (private
