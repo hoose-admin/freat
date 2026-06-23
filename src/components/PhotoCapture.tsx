@@ -3,6 +3,10 @@ import { useEffect, useRef, useState } from "react";
 interface Props {
   onPhoto: (dataUrl: string) => void;
   busy: boolean;
+  // Optional hook into App's single polite live region (the `status` channel).
+  // Used to announce the transient FileReader "Reading photo…" phase to screen
+  // readers without adding a second aria-live region. See onFile / TKT-123.
+  onStatus?: (message: string) => void;
 }
 
 type Mode = "idle" | "live";
@@ -17,7 +21,7 @@ type Mode = "idle" | "live";
  * The camera is only ever requested on a user action (never on mount), so the
  * app loads with zero console errors when no camera/permission exists.
  */
-export default function PhotoCapture({ onPhoto, busy }: Props) {
+export default function PhotoCapture({ onPhoto, busy, onStatus }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -138,12 +142,25 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     setReading(true);
+    // a11y (TKT-123): mirror the visible "Reading photo…" button label (below)
+    // into App's single polite live region so SR users hear this transient
+    // file-read phase, restoring parity (WCAG 2.2 SC 4.1.3). On the success
+    // path App.handlePhoto overwrites this with "Looking at your fridge…" the
+    // instant the read finishes — so we reuse the ONE region (no new aria-live),
+    // set-then-superseded. The other exits clear it to avoid a stale message.
+    onStatus?.("Reading photo…");
     const reader = new FileReader();
     reader.onload = () => {
       setReading(false);
       if (typeof reader.result === "string") onPhoto(reader.result);
+      else onStatus?.(""); // non-string result: handlePhoto won't run, so clear it
     };
-    reader.onerror = () => setReading(false);
+    // Failed read: handlePhoto never runs, so clear our announcement to avoid a
+    // stale "Reading photo…". The error itself is announced separately (TKT-124).
+    reader.onerror = () => {
+      setReading(false);
+      onStatus?.("");
+    };
     reader.readAsDataURL(file);
   }
 
