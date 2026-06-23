@@ -30,6 +30,7 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
   const [mode, setMode] = useState<Mode>("idle");
   const [reading, setReading] = useState(false); // FileReader in-flight
   const [starting, setStarting] = useState(false); // getUserMedia in-flight
+  const [ready, setReady] = useState(false); // live <video> has produced its first frame
   const [hint, setHint] = useState<string | null>(null); // fallback notice
 
   const cameraSupported =
@@ -56,6 +57,7 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
   // focus on load. cancelCamera handles the reverse (live→idle) focus restore.
   useEffect(() => {
     if (mode !== "live") return;
+    setReady(false); // fresh <video> each entry — wait for its first frame again
     const video = videoRef.current;
     if (video && streamRef.current) {
       video.srcObject = streamRef.current;
@@ -164,13 +166,23 @@ export default function PhotoCapture({ onPhoto, busy }: Props) {
             playsInline
             muted
             aria-label="Live camera preview"
+            // First frame is ready once metadata loads — that's exactly when
+            // videoWidth/Height become non-zero, the condition capture() guards on.
+            onLoadedMetadata={() => setReady(true)}
           />
           <div className="actions actions--center">
             <button className="btn btn--ghost" onClick={cancelCamera} disabled={disabled}>
               Cancel
             </button>
-            <button className="btn btn--primary btn--lg" onClick={capture} disabled={disabled}>
-              Capture photo
+            <button
+              className="btn btn--primary btn--lg"
+              onClick={capture}
+              // Gate on `ready` so a fast tap before the first frame can't
+              // silently no-op (capture()'s !videoWidth guard); Cancel stays
+              // enabled so the user is never trapped waiting.
+              disabled={disabled || !ready}
+            >
+              {ready ? "Capture photo" : "Preparing…"}
             </button>
           </div>
         </>
