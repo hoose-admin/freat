@@ -318,6 +318,7 @@ body {
 
 /* Ingredients */
 .ingredients,
+.pantry,
 .recipes,
 .shopping {
   background: var(--surface);
@@ -379,6 +380,13 @@ body {
 .chip--plain {
   padding: 6px 14px;
 }
+/* Pantry staple — tinted brand-green to read as "stocked", visually distinct
+   from photo-detected (plain) and low-confidence (amber) chips so the user can
+   tell which items come from their standing pantry vs the photo. */
+.chip--pantry {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.4);
+}
 .chip__warn {
   color: #fbbf24;
   font-size: 0.9rem;
@@ -406,6 +414,17 @@ body {
 .input:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 1px;
+}
+
+/* Pantry staples (ingredients screen) — a standing list of always-on-hand
+   basics, unioned into every recipe request (client-side; no Gemini call). */
+.pantry__title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.pantry__hint {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
 }
 
 /* Recipe preferences (ingredients screen) — dietary toggles + max cook time.
