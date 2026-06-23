@@ -8,6 +8,7 @@
   --brand: #16a34a;
   --brand-strong: #15803d;
   --danger: #f87171;
+  --warn: #fbbf24;
   --radius: 14px;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   color-scheme: dark;
@@ -419,8 +420,8 @@ body {
   color: var(--muted);
 }
 .chip--unsure {
-  background: rgba(251, 191, 36, 0.08);
-  border-color: rgba(251, 191, 36, 0.4);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
   opacity: 0.85;
 }
 /* Read-only chip (no remove button) — symmetric padding, used by the shopping list */
@@ -435,7 +436,7 @@ body {
   border-color: rgba(22, 163, 74, 0.4);
 }
 .chip__warn {
-  color: #fbbf24;
+  color: var(--warn);
   font-size: 0.9rem;
   line-height: 1;
 }
